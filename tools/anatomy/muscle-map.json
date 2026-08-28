@@ -1,0 +1,140 @@
+{
+  "chest": [
+    "abdominal_part_of_left_pectoralis_major__FJ1446M",
+    "abdominal_part_of_right_pectoralis_major__FJ1446",
+    "clavicular_part_of_left_pectoralis_major__FJ1447M",
+    "clavicular_part_of_right_pectoralis_major__FJ1447",
+    "left_pectoralis_minor__FJ1456M",
+    "right_pectoralis_minor__FJ1456",
+    "sternocostal_part_of_left_pectoralis_major__FJ1464M",
+    "sternocostal_part_of_right_pectoralis_major__FJ1464"
+  ],
+  "frontDelts": [
+    "clavicular_part_of_left_deltoid__FJ1468M",
+    "clavicular_part_of_right_deltoid__FJ1468"
+  ],
+  "sideDelts": [
+    "acromial_part_of_left_deltoid__FJ1467M",
+    "acromial_part_of_right_deltoid__FJ1467"
+  ],
+  "rearDelts": [
+    "spinal_part_of_left_deltoid__FJ1513M",
+    "spinal_part_of_right_deltoid__FJ1513"
+  ],
+  "traps": [
+    "ascending_part_of_left_trapezius__FJ1520M",
+    "ascending_part_of_right_trapezius__FJ1520",
+    "descending_part_of_left_trapezius__FJ1521M",
+    "descending_part_of_right_trapezius__FJ1521",
+    "transverse_part_of_left_trapezius__FJ1554M",
+    "transverse_part_of_right_trapezius__FJ1554"
+  ],
+  "rhomboids": [
+    "left_rhomboid_major__FJ1536M",
+    "left_rhomboid_minor__FJ1537M",
+    "right_rhomboid_major__FJ1536",
+    "right_rhomboid_minor__FJ1537"
+  ],
+  "teresMajor": [
+    "left_teres_major__FJ1507M",
+    "right_teres_major__FJ1507"
+  ],
+  "rotatorCuff": [
+    "left_infraspinatus_muscle__FJ1500M",
+    "left_supraspinatus__FJ1506M",
+    "left_teres_minor__FJ1508M",
+    "right_infraspinatus_muscle__FJ1500",
+    "right_supraspinatus__FJ1506",
+    "right_teres_minor__FJ1508"
+  ],
+  "biceps": [
+    "long_head_of_left_biceps_brachii__FJ1478M",
+    "long_head_of_right_biceps_brachii__FJ1478",
+    "short_head_of_left_biceps_brachii__FJ1512M",
+    "short_head_of_right_biceps_brachii__FJ1512"
+  ],
+  "triceps": [
+    "lateral_head_of_left_triceps_brachii__FJ1477M",
+    "lateral_head_of_right_triceps_brachii__FJ1477",
+    "long_head_of_left_triceps_brachii__FJ1479M",
+    "long_head_of_right_triceps_brachii__FJ1479",
+    "medial_head_of_left_triceps_brachii__FJ1480M",
+    "medial_head_of_right_triceps_brachii__FJ1480"
+  ],
+  "brachialis": [
+    "left_brachialis__FJ1486M",
+    "right_brachialis__FJ1486"
+  ],
+  "forearms": [
+    "left_brachioradialis__FJ1487M",
+    "right_brachioradialis__FJ1487"
+  ],
+  "obliques": [
+    "left_external_oblique__FJ1452M",
+    "right_external_oblique__FJ1452"
+  ],
+  "lowerBack": [
+    "left_iliocostalis_lumborum__FJ1527M",
+    "left_iliocostalis_thoracis__FJ1528M",
+    "left_longissimus_thoracis__FJ1535M",
+    "left_spinalis_thoracis__FJ1544M",
+    "right_iliocostalis_lumborum__FJ1527",
+    "right_iliocostalis_thoracis__FJ1528",
+    "right_longissimus_thoracis__FJ1535",
+    "right_spinalis_thoracis__FJ1544"
+  ],
+  "glutes": [
+    "left_gluteus_maximus__FJ1418M",
+    "right_gluteus_maximus__FJ1418"
+  ],
+  "gluteMedius": [
+    "left_gluteus_medius__FJ1419M",
+    "right_gluteus_medius__FJ1419"
+  ],
+  "gluteMinimus": [
+    "left_gluteus_minimus__FJ1420M",
+    "right_gluteus_minimus__FJ1420"
+  ],
+  "quads": [
+    "left_rectus_femoris__FJ1433M",
+    "left_vastus_intermedius__FJ1441M",
+    "left_vastus_lateralis__FJ1442M",
+    "left_vastus_medialis__FJ1443M",
+    "right_rectus_femoris__FJ1433",
+    "right_vastus_intermedius__FJ1441",
+    "right_vastus_lateralis__FJ1442",
+    "right_vastus_medialis__FJ1443"
+  ],
+  "hamstrings": [
+    "left_semimembranosus__FJ1435M",
+    "left_semitendinosus__FJ1436M",
+    "long_head_of_left_biceps_femoris__FJ1395M",
+    "long_head_of_right_biceps_femoris__FJ1395",
+    "right_semimembranosus__FJ1435",
+    "right_semitendinosus__FJ1436",
+    "short_head_of_left_biceps_femoris__FJ1444M",
+    "short_head_of_right_biceps_femoris__FJ1444"
+  ],
+  "adductors": [
+    "left_adductor_brevis__FJ1401M",
+    "left_adductor_longus__FJ1402M",
+    "left_adductor_magnus__FJ1403M",
+    "right_adductor_brevis__FJ1401",
+    "right_adductor_longus__FJ1402",
+    "right_adductor_magnus__FJ1403"
+  ],
+  "calves": [
+    "lateral_head_of_left_gastrocnemius__FJ1394M",
+    "lateral_head_of_right_gastrocnemius__FJ1394",
+    "left_soleus__FJ1437M",
+    "medial_head_of_left_gastrocnemius__FJ1397M",
+    "medial_head_of_right_gastrocnemius__FJ1397",
+    "right_soleus__FJ1437"
+  ],
+  "tibialisAnterior": [
+    "left_tibialis_anterior__FJ1439M",
+    "right_tibialis_anterior__FJ1439"
+  ],
+  "lats": [],
+  "abs": []
+}
