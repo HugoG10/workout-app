@@ -28,6 +28,7 @@ export type WorkoutExercise = {
     secondaryMuscles: string[];
     tracking: TrackingType;
     notes: string;
+    restSeconds?: number;
     sets: WorkoutSet[];
 };
 
@@ -42,6 +43,7 @@ type WorkoutContextType = {
     workoutExercises: WorkoutExercise[];
     workoutStartedAt: number | null;
     restEndsAt: number | null;
+    workoutName: string;
     isWorkoutActive: boolean;
     hydrated: boolean;
 
@@ -85,6 +87,11 @@ type WorkoutContextType = {
 
     updateNotes: (exerciseId: string, notes: string) => void;
 
+    updateRestSeconds: (
+        exerciseId: string,
+        seconds: number
+    ) => void;
+
     toggleCompleted: (
         exerciseId: string,
         setId: number
@@ -96,12 +103,26 @@ type WorkoutContextType = {
 
     ensureWorkoutStarted: () => void;
 
-    startEmptyWorkout: () => void;
+    startEmptyWorkout: (name?: string) => void;
 
     startRoutine: (
         exerciseIds: string[],
-        prefillByExerciseId?: Record<string, SetPrefill>
+        prefillByExerciseId?: Record<string, SetPrefill>,
+        name?: string
     ) => void;
+
+    startFromHistory: (
+        exercises: WorkoutExercise[],
+        name?: string
+    ) => void;
+
+    replaceExercise: (
+        currentId: string,
+        nextId: string,
+        prefill?: SetPrefill
+    ) => void;
+
+    setWorkoutName: (name: string) => void;
 };
 
 const WorkoutContext =
@@ -130,6 +151,7 @@ function normalizeExercise(
         secondaryMuscles: raw.secondaryMuscles ?? [],
         tracking: raw.tracking ?? 'weight_reps',
         notes: raw.notes ?? '',
+        restSeconds: raw.restSeconds,
         sets: (raw.sets ?? []).map((set) =>
             normalizeSet(set as WorkoutSet)
         ),
@@ -152,6 +174,7 @@ export function WorkoutProvider({
     const [restEndsAt, setRestEndsAtState] = useState<
         number | null
     >(null);
+    const [workoutName, setWorkoutNameState] = useState('Workout');
     const [hydrated, setHydrated] = useState(false);
     const skipSave = useRef(true);
 
@@ -166,7 +189,7 @@ export function WorkoutProvider({
         }
 
         persistActiveWorkout();
-    }, [workoutExercises, workoutStartedAt, restEndsAt, hydrated]);
+    }, [workoutExercises, workoutStartedAt, restEndsAt, workoutName, hydrated]);
 
     async function loadActiveWorkout() {
         try {
@@ -177,6 +200,7 @@ export function WorkoutProvider({
                     workoutExercises?: Partial<WorkoutExercise>[];
                     workoutStartedAt?: number | null;
                     restEndsAt?: number | null;
+                    workoutName?: string;
                 };
 
                 if (parsed.workoutStartedAt) {
@@ -189,6 +213,9 @@ export function WorkoutProvider({
                     );
                     setWorkoutStartedAt(parsed.workoutStartedAt);
                     setRestEndsAtState(parsed.restEndsAt ?? null);
+                    setWorkoutNameState(
+                        parsed.workoutName?.trim() || 'Workout'
+                    );
                 }
             }
         } catch (error) {
@@ -212,6 +239,7 @@ export function WorkoutProvider({
                 workoutExercises,
                 workoutStartedAt,
                 restEndsAt,
+                workoutName,
             })
         ).catch((error) => {
             console.log('Failed to save active workout:', error);
@@ -246,6 +274,7 @@ export function WorkoutProvider({
             secondaryMuscles: selected.secondaryMuscles,
             tracking: trackingFor(selected),
             notes: '',
+            restSeconds: undefined,
             sets: [createSet(prefill)],
         };
     }
@@ -254,10 +283,15 @@ export function WorkoutProvider({
         setWorkoutStartedAt((current) => current ?? Date.now());
     }
 
-    function startEmptyWorkout() {
+    function setWorkoutName(name: string) {
+        setWorkoutNameState(name);
+    }
+
+    function startEmptyWorkout(name?: string) {
         setWorkoutExercises([]);
         setWorkoutStartedAt(Date.now());
         setRestEndsAtState(null);
+        setWorkoutNameState(name?.trim() || 'Workout');
     }
 
     function addExercise(exerciseId: string, prefill?: SetPrefill) {
@@ -280,7 +314,8 @@ export function WorkoutProvider({
 
     function startRoutine(
         exerciseIds: string[],
-        prefillByExerciseId?: Record<string, SetPrefill>
+        prefillByExerciseId?: Record<string, SetPrefill>,
+        name?: string
     ) {
         const routineExercises = exerciseIds
             .map((exerciseId) =>
@@ -294,6 +329,63 @@ export function WorkoutProvider({
         setWorkoutExercises(routineExercises);
         setWorkoutStartedAt(Date.now());
         setRestEndsAtState(null);
+        setWorkoutNameState(name?.trim() || 'Workout');
+    }
+
+    function startFromHistory(
+        exercises: WorkoutExercise[],
+        name?: string
+    ) {
+        setWorkoutExercises(
+            exercises.map((exercise) => ({
+                ...exercise,
+                secondaryMuscles: [...exercise.secondaryMuscles],
+                notes: exercise.notes ?? '',
+                sets: exercise.sets.map((set) => ({
+                    ...set,
+                    id: Date.now() + Math.random(),
+                    completed: false,
+                })),
+            }))
+        );
+        setWorkoutStartedAt(Date.now());
+        setRestEndsAtState(null);
+        setWorkoutNameState(name?.trim() || 'Workout');
+    }
+
+    function replaceExercise(
+        currentId: string,
+        nextId: string,
+        prefill?: SetPrefill
+    ) {
+        const next = exerciseFromCatalog(nextId, prefill);
+
+        if (!next) {
+            return;
+        }
+
+        setWorkoutExercises((current) =>
+            current.map((exercise) => {
+                if (exercise.id !== currentId) {
+                    return exercise;
+                }
+
+                const sameTracking =
+                    exercise.tracking === next.tracking;
+
+                return {
+                    ...next,
+                    notes: exercise.notes,
+                    restSeconds: exercise.restSeconds,
+                    sets: sameTracking
+                        ? exercise.sets.map((set) => ({
+                              ...set,
+                              completed: false,
+                          }))
+                        : next.sets,
+                };
+            })
+        );
     }
 
     function removeExercise(exerciseId: string) {
@@ -460,6 +552,19 @@ export function WorkoutProvider({
         }));
     }
 
+    function updateRestSeconds(
+        exerciseId: string,
+        seconds: number
+    ) {
+        setWorkoutExercises((current) =>
+            current.map((exercise) =>
+                exercise.id === exerciseId
+                    ? { ...exercise, restSeconds: seconds }
+                    : exercise
+            )
+        );
+    }
+
     function updateNotes(exerciseId: string, notes: string) {
         setWorkoutExercises((current) =>
             current.map((exercise) =>
@@ -512,6 +617,7 @@ export function WorkoutProvider({
         setWorkoutExercises([]);
         setWorkoutStartedAt(null);
         setRestEndsAtState(null);
+        setWorkoutNameState('Workout');
     }
 
     const isWorkoutActive = workoutStartedAt !== null;
@@ -522,6 +628,7 @@ export function WorkoutProvider({
                 workoutExercises,
                 workoutStartedAt,
                 restEndsAt,
+                workoutName,
                 isWorkoutActive,
                 hydrated,
                 addExercise,
@@ -535,12 +642,16 @@ export function WorkoutProvider({
                 updateReps,
                 updateDuration,
                 updateNotes,
+                updateRestSeconds,
                 toggleCompleted,
                 setRestEndsAt,
                 clearWorkout,
                 ensureWorkoutStarted,
                 startEmptyWorkout,
                 startRoutine,
+                startFromHistory,
+                replaceExercise,
+                setWorkoutName,
             }}
         >
             {children}

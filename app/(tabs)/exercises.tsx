@@ -4,7 +4,6 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     View,
 } from 'react-native';
 
@@ -17,6 +16,10 @@ import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppColors } from '@/constants/theme';
 import { ScreenTip } from '@/components/screen-tip';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SearchField } from '@/components/ui/search-field';
+import { Ionicons } from '@expo/vector-icons';
+import { Layout } from '@/constants/theme';
 
 const muscleGroups = [
     'All',
@@ -153,66 +156,38 @@ export default function ExercisesScreen() {
             nestedScrollEnabled
             showsVerticalScrollIndicator={false}
         >
-            {/* HEADER */}
-
-            <View style={styles.titleRow}>
-                <Text style={styles.title}>
-                    Exercises
-                </Text>
-
-                <Pressable
-                    onPress={() =>
-                        router.push('/create-exercise')
+            <View style={styles.headerWrap}>
+                <ScreenHeader
+                    title="Exercises"
+                    subtitle="Find a movement and see your progress."
+                    right={
+                        <Pressable
+                            onPress={() =>
+                                router.push('/create-exercise')
+                            }
+                            hitSlop={8}
+                        >
+                            <Text style={styles.customLinkText}>
+                                + Custom
+                            </Text>
+                        </Pressable>
                     }
-                    hitSlop={8}
-                >
-                    <Text style={styles.customLinkText}>
-                        + Custom
-                    </Text>
-                </Pressable>
+                />
             </View>
-
-            <Text style={styles.subtitle}>
-                Find an exercise and learn proper form.
-            </Text>
 
             <ScreenTip
                 id="exercises"
                 title="Learn an exercise"
                 body="Tap any movement for form, muscles, and your strength progress."
-                style={{ marginHorizontal: 20 }}
+                style={{ marginHorizontal: Layout.screenPadding }}
             />
 
-            {/* SEARCH */}
-
-            <View style={styles.searchContainer}>
-                <Text style={styles.searchIcon}>
-                    ⌕
-                </Text>
-
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search exercises..."
-                    placeholderTextColor={colors.textFaint}
-                    value={search}
-                    onChangeText={setSearch}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                />
-
-                {search.length > 0 && (
-                    <Pressable
-                        hitSlop={8}
-                        onPress={() =>
-                            setSearch('')
-                        }
-                    >
-                        <Text style={styles.clearSearch}>
-                            ×
-                        </Text>
-                    </Pressable>
-                )}
-            </View>
+            <SearchField
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search exercises"
+                style={{ marginHorizontal: Layout.screenPadding }}
+            />
 
             {/* MUSCLE FILTER */}
 
@@ -524,9 +499,11 @@ export default function ExercisesScreen() {
                             </View>
                         </View>
 
-                        <Text style={styles.arrow}>
-                            ›
-                        </Text>
+                        <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color={colors.textFaint}
+                        />
                     </Pressable>
                 )
             )}
@@ -570,6 +547,10 @@ function createStyles(c: AppColors) {
 
     content: {
         paddingBottom: 60,
+    },
+
+    headerWrap: {
+        paddingHorizontal: Layout.screenPadding,
     },
 
     titleRow: {

@@ -120,9 +120,9 @@ export function SettingsGroup({
 
 const styles = StyleSheet.create({
     group: {
-        borderRadius: 14,
+        borderRadius: 16,
         overflow: 'hidden',
-        marginBottom: 28,
+        marginBottom: 24,
     },
 
     row: {

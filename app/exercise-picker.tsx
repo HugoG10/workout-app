@@ -7,7 +7,7 @@ import {
     View,
 } from 'react-native';
 
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 
 import { useExerciseCatalog } from '@/context/exercise-catalog-context';
@@ -25,11 +25,15 @@ export default function ExercisePickerScreen() {
 
     const insets = useScreenInsets();
     const { exercises } = useExerciseCatalog();
-    const { addExercise, workoutExercises } =
+    const { addExercise, replaceExercise, workoutExercises } =
         useWorkout();
     const { getPreviousExercise } = useHistory();
+    const { replaceId } = useLocalSearchParams<{
+        replaceId?: string;
+    }>();
 
     const [search, setSearch] = useState('');
+    const replacing = Boolean(replaceId);
 
     const addedIds = useMemo(
         () =>
@@ -65,17 +69,19 @@ export default function ExercisePickerScreen() {
     );
 
     function selectExercise(exerciseId: string) {
-        if (addedIds.has(exerciseId)) {
+        if (addedIds.has(exerciseId) && exerciseId !== replaceId) {
             return;
         }
 
         const previous =
             getPreviousExercise(exerciseId);
+        const prefill = prefillFromPrevious(previous?.sets);
 
-        addExercise(
-            exerciseId,
-            prefillFromPrevious(previous?.sets)
-        );
+        if (replaceId) {
+            replaceExercise(replaceId, exerciseId, prefill);
+        } else {
+            addExercise(exerciseId, prefill);
+        }
 
         router.back();
     }
@@ -98,7 +104,7 @@ export default function ExercisePickerScreen() {
                 </Pressable>
 
                 <Text style={styles.title}>
-                    Add Exercise
+                    {replacing ? 'Replace Exercise' : 'Add Exercise'}
                 </Text>
 
                 <Pressable

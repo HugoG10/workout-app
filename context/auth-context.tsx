@@ -83,6 +83,8 @@ type AuthContextType = {
         currentPassword: string,
         nextPassword: string
     ) => Promise<void>;
+
+    verifyPassword: (password: string) => Promise<void>;
 };
 
 const AuthContext =
@@ -619,6 +621,18 @@ export function AuthProvider({
         });
     }
 
+    async function verifyPassword(password: string) {
+        if (!account) {
+            throw new Error('No account on this device.');
+        }
+
+        const hash = await hashPassword(password, account.salt);
+
+        if (hash !== account.passwordHash) {
+            throw new Error('Password is incorrect.');
+        }
+    }
+
     return (
         <AuthContext.Provider
             value={{
@@ -638,6 +652,7 @@ export function AuthProvider({
                 updateProfile,
                 updateProfilePhoto,
                 changePassword,
+                verifyPassword,
             }}
         >
             {children}

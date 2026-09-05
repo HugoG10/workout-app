@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 
 import { useHistory } from '@/context/history-context';
 import { useRoutines } from '@/context/routine-context';
+import { useSettings } from '@/context/settings-context';
 import {
   SetPrefill,
   useWorkout,
@@ -18,10 +19,17 @@ import {
 import { useAuth } from '@/context/auth-context';
 import { useExerciseCatalog } from '@/context/exercise-catalog-context';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
+import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppColors } from '@/constants/theme';
 import { ScreenTip } from '@/components/screen-tip';
-import { prefillFromPrevious } from '@/lib/workout-stats';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { Ionicons } from '@expo/vector-icons';
+import { muscleRecovery } from '@/lib/recovery';
+import {
+  nextWeightHints,
+  prefillFromPrevious,
+} from '@/lib/workout-stats';
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -56,7 +64,9 @@ export default function WorkoutScreen() {
   const { user } = useAuth();
   const { exercises } = useExerciseCatalog();
   const { routines } = useRoutines();
-  const { getPreviousExercise, lastRecap } = useHistory();
+  const { getPreviousExercise, lastRecap, workouts } =
+    useHistory();
+  const { weightUnit } = useSettings();
 
   const {
     isWorkoutActive,
@@ -64,9 +74,11 @@ export default function WorkoutScreen() {
     workoutStartedAt,
     startEmptyWorkout,
     startRoutine,
+    startFromHistory,
   } = useWorkout();
 
   const styles = useThemedStyles(createStyles);
+  const { colors } = useAppTheme();
 
   function getPrefill(
     exerciseIds: string[]
@@ -124,13 +136,28 @@ export default function WorkoutScreen() {
   }
 
   function handleStartRoutine(
-    exerciseIds: string[]
+    exerciseIds: string[],
+    name?: string
   ) {
     confirmReplaceWorkout(() => {
       startRoutine(
         exerciseIds,
-        getPrefill(exerciseIds)
+        getPrefill(exerciseIds),
+        name
       );
+      router.push('/active-workout');
+    });
+  }
+
+  function handleRepeatLast() {
+    const last = workouts[0];
+
+    if (!last) {
+      return;
+    }
+
+    confirmReplaceWorkout(() => {
+      startFromHistory(last.exercises, last.name);
       router.push('/active-workout');
     });
   }
@@ -146,6 +173,26 @@ export default function WorkoutScreen() {
 
   const greeting = getGreeting();
   const firstName = user?.firstName?.trim();
+  const weightHints =
+    !isWorkoutActive
+      ? nextWeightHints(
+          workouts,
+          workouts[0]?.weightUnit ?? weightUnit
+        )
+      : [];
+  const recovery = !isWorkoutActive
+    ? muscleRecovery(workouts).slice(0, 4)
+    : [];
+  const lastWorkout = workouts[0];
+
+  const hasToday =
+    !isWorkoutActive &&
+    Boolean(
+      lastRecap?.insight ||
+        lastWorkout ||
+        recovery.length > 0 ||
+        weightHints.length > 0
+    );
 
   return (
     <ScrollView
@@ -156,15 +203,10 @@ export default function WorkoutScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>
-        Workout
-      </Text>
-
-      <Text style={styles.subtitle}>
-        {firstName
-          ? `${greeting}, ${firstName}. Ready when you are.`
-          : `${greeting}. Ready when you are.`}
-      </Text>
+      <ScreenHeader
+        title={firstName ? `${greeting}, ${firstName}` : greeting}
+        subtitle="Start a session or open a routine."
+      />
 
       <ScreenTip
         id="workout"
@@ -172,10 +214,67 @@ export default function WorkoutScreen() {
         body="Use Start Empty Workout, or tap Start on a routine. Create a routine once and reuse it next time."
       />
 
-      {lastRecap?.insight && !isWorkoutActive && (
-        <View style={styles.insightCard}>
-          <Text style={styles.insightKicker}>LAST SESSION</Text>
-          <Text style={styles.insightText}>{lastRecap.insight}</Text>
+      {hasToday && (
+        <View style={styles.todayCard}>
+          {lastRecap?.insight ? (
+            <View style={styles.todayBlock}>
+              <Text style={styles.todayKicker}>LAST SESSION</Text>
+              <Text style={styles.todayText}>{lastRecap.insight}</Text>
+            </View>
+          ) : null}
+
+          {lastWorkout ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.todayRow,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={handleRepeatLast}
+            >
+              <View style={styles.todayCopy}>
+                <Text style={styles.todayKicker}>REPEAT</Text>
+                <Text style={styles.todayText}>
+                  {lastWorkout.name || 'Workout'}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={colors.textFaint}
+              />
+            </Pressable>
+          ) : null}
+
+          {weightHints.length > 0 ? (
+            <View style={styles.todayBlock}>
+              <Text style={styles.todayKicker}>NEXT WEIGHT</Text>
+              {weightHints.map((hint) => (
+                <Text key={hint} style={styles.todayHint}>
+                  {hint}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+
+          {recovery.length > 0 ? (
+            <View style={styles.todayBlock}>
+              <Text style={styles.todayKicker}>RECOVERY</Text>
+              {recovery.map((item) => (
+                <View key={item.muscle} style={styles.recoveryRow}>
+                  <Text style={styles.recoveryName}>{item.muscle}</Text>
+                  <View style={styles.recoveryTrack}>
+                    <View
+                      style={[
+                        styles.recoveryFill,
+                        { width: `${item.recovered}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.recoveryValue}>{item.recovered}%</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -242,7 +341,11 @@ export default function WorkoutScreen() {
           </Text>
         </View>
 
-        <Text style={styles.arrow}>›</Text>
+        <Ionicons
+          name="chevron-forward"
+          size={22}
+          color="rgba(255,255,255,0.8)"
+        />
       </Pressable>
 
       <View style={styles.sectionHeader}>
@@ -326,7 +429,8 @@ export default function WorkoutScreen() {
                 onPress={(event) => {
                   event.stopPropagation();
                   handleStartRoutine(
-                    routine.exerciseIds
+                    routine.exerciseIds,
+                    routine.name
                   );
                 }}
               >
@@ -392,15 +496,6 @@ export default function WorkoutScreen() {
               )}
             </View>
 
-            <View style={styles.cardFooter}>
-              <Text style={styles.editText}>
-                Tap to edit routine
-              </Text>
-
-              <Text style={styles.smallArrow}>
-                ›
-              </Text>
-            </View>
           </Pressable>
         );
       })}
@@ -418,20 +513,6 @@ function createStyles(c: AppColors) {
   content: {
     padding: 20,
     paddingBottom: 60,
-  },
-
-  title: {
-    color: c.text,
-    fontSize: 36,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-
-  subtitle: {
-    color: c.textSecondary,
-    fontSize: 16,
-    marginTop: 4,
-    marginBottom: 10,
   },
 
   sectionHeader: {
@@ -456,26 +537,83 @@ function createStyles(c: AppColors) {
     marginBottom: 12,
   },
 
-  insightCard: {
-    backgroundColor: c.tintSoft,
+  todayCard: {
+    backgroundColor: c.card,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 18,
+    marginBottom: 20,
+    gap: 16,
   },
 
-  insightKicker: {
+  todayBlock: {
+    gap: 6,
+  },
+
+  todayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  todayCopy: {
+    flex: 1,
+    gap: 4,
+  },
+
+  todayKicker: {
     color: c.tint,
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.7,
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
 
-  insightText: {
+  todayText: {
     color: c.text,
     fontSize: 16,
-    fontWeight: '700',
-    marginTop: 6,
+    fontWeight: '600',
     lineHeight: 22,
+  },
+
+  todayHint: {
+    color: c.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  recoveryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+
+  recoveryName: {
+    color: c.text,
+    fontSize: 13,
+    fontWeight: '600',
+    width: 88,
+  },
+
+  recoveryTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: c.fill,
+    overflow: 'hidden',
+  },
+
+  recoveryFill: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: c.tint,
+  },
+
+  recoveryValue: {
+    color: c.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    width: 36,
+    textAlign: 'right',
   },
 
   resumeCard: {
@@ -558,12 +696,6 @@ function createStyles(c: AppColors) {
     color: 'rgba(255,255,255,0.75)',
     fontSize: 13,
     marginTop: 3,
-  },
-
-  arrow: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 30,
-    marginLeft: 8,
   },
 
   routineCard: {
@@ -667,26 +799,6 @@ function createStyles(c: AppColors) {
     fontWeight: '600',
     marginTop: 2,
     marginBottom: 4,
-  },
-
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.separatorSoft,
-    marginTop: 5,
-    paddingTop: 12,
-  },
-
-  editText: {
-    color: c.textFaint,
-    fontSize: 12,
-  },
-
-  smallArrow: {
-    color: c.textFaint,
-    fontSize: 20,
   },
 
   emptyCard: {

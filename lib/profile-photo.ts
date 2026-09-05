@@ -16,7 +16,7 @@ export async function persistProfilePhoto(
         Paths.document,
         `profile-photo-${Date.now()}.jpg`
     );
-    new File(sourceUri).copy(dest);
+    await new File(sourceUri).copy(dest);
 
     return dest.uri;
 }

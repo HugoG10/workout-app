@@ -68,6 +68,11 @@ export default function SettingsLayout() {
                 name="training"
                 options={{ title: 'Training' }}
             />
+
+            <Stack.Screen
+                name="health"
+                options={{ title: 'Apple Health' }}
+            />
         </Stack>
     );
 }

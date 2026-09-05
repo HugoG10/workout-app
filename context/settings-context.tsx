@@ -11,9 +11,11 @@ import { Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppearanceMode } from '@/constants/theme';
+import { APPLE_HEALTH_ENABLED_KEY } from '@/lib/apple-health';
 import { MusicService } from '@/lib/music';
 
 export type WeightUnit = 'lb' | 'kg';
+export type LockAfterSeconds = 0 | 60 | 300 | -1;
 export type { AppearanceMode };
 
 export type TipId =
@@ -69,6 +71,18 @@ type SettingsContextType = {
 
     resetTips: () => void;
 
+    lockAfterSeconds: LockAfterSeconds;
+
+    setLockAfterSeconds: (seconds: LockAfterSeconds) => void;
+
+    restAlertsEnabled: boolean;
+
+    setRestAlertsEnabled: (enabled: boolean) => void;
+
+    appleHealthEnabled: boolean;
+
+    setAppleHealthEnabled: (enabled: boolean) => void;
+
     loading: boolean;
 };
 
@@ -96,9 +110,13 @@ const MUSIC_BAR_COLLAPSED_KEY =
 
 const SEEN_TIPS_KEY = 'seen-screen-tips';
 
+const LOCK_AFTER_KEY = 'lock-after-seconds';
+
+const REST_ALERTS_KEY = 'rest-alerts-enabled';
+
 function applyColorScheme(mode: AppearanceMode) {
     if (mode === 'system') {
-        Appearance.setColorScheme(null);
+        Appearance.setColorScheme('unspecified');
         return;
     }
 
@@ -142,6 +160,15 @@ export function SettingsProvider({
         TipId[]
     >([]);
 
+    const [lockAfterSeconds, setLockAfterSecondsState] =
+        useState<LockAfterSeconds>(60);
+
+    const [restAlertsEnabled, setRestAlertsEnabledState] =
+        useState(true);
+
+    const [appleHealthEnabled, setAppleHealthEnabledState] =
+        useState(false);
+
     const [loading, setLoading] =
         useState(true);
 
@@ -159,6 +186,9 @@ export function SettingsProvider({
                 savedAppearance,
                 savedMusicBarCollapsed,
                 savedSeenTips,
+                savedLockAfter,
+                savedRestAlerts,
+                savedAppleHealth,
             ] = await Promise.all([
                 AsyncStorage.getItem(
                     REST_TIME_KEY
@@ -186,6 +216,18 @@ export function SettingsProvider({
 
                 AsyncStorage.getItem(
                     SEEN_TIPS_KEY
+                ),
+
+                AsyncStorage.getItem(
+                    LOCK_AFTER_KEY
+                ),
+
+                AsyncStorage.getItem(
+                    REST_ALERTS_KEY
+                ),
+
+                AsyncStorage.getItem(
+                    APPLE_HEALTH_ENABLED_KEY
                 ),
             ]);
 
@@ -256,6 +298,24 @@ export function SettingsProvider({
                 } catch {
                     setSeenTips([]);
                 }
+            }
+
+            const parsedLock = Number(savedLockAfter);
+            if (
+                parsedLock === 0 ||
+                parsedLock === 60 ||
+                parsedLock === 300 ||
+                parsedLock === -1
+            ) {
+                setLockAfterSecondsState(parsedLock);
+            }
+
+            if (savedRestAlerts === 'false') {
+                setRestAlertsEnabledState(false);
+            }
+
+            if (savedAppleHealth === 'true') {
+                setAppleHealthEnabledState(true);
             }
         } catch (error) {
             console.log(
@@ -395,6 +455,36 @@ export function SettingsProvider({
         persistSeenTips([]);
     }
 
+    function setLockAfterSeconds(seconds: LockAfterSeconds) {
+        setLockAfterSecondsState(seconds);
+        AsyncStorage.setItem(
+            LOCK_AFTER_KEY,
+            String(seconds)
+        ).catch((error) => {
+            console.log('Failed to save lock timeout:', error);
+        });
+    }
+
+    function setRestAlertsEnabled(enabled: boolean) {
+        setRestAlertsEnabledState(enabled);
+        AsyncStorage.setItem(
+            REST_ALERTS_KEY,
+            enabled ? 'true' : 'false'
+        ).catch((error) => {
+            console.log('Failed to save rest alerts:', error);
+        });
+    }
+
+    function setAppleHealthEnabled(enabled: boolean) {
+        setAppleHealthEnabledState(enabled);
+        AsyncStorage.setItem(
+            APPLE_HEALTH_ENABLED_KEY,
+            enabled ? 'true' : 'false'
+        ).catch((error) => {
+            console.log('Failed to save Apple Health:', error);
+        });
+    }
+
     return (
         <SettingsContext.Provider
             value={{
@@ -419,6 +509,15 @@ export function SettingsProvider({
                 isTipSeen,
                 dismissTip,
                 resetTips,
+
+                lockAfterSeconds,
+                setLockAfterSeconds,
+
+                restAlertsEnabled,
+                setRestAlertsEnabled,
+
+                appleHealthEnabled,
+                setAppleHealthEnabled,
 
                 loading,
             }}

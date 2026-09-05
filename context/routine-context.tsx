@@ -81,7 +81,39 @@ const defaultRoutines: Routine[] = [
             'standing-calf-raise',
         ],
     },
+
+    {
+        id: 'upper-day',
+        name: 'Upper Body',
+        exerciseIds: [
+            'bench-press',
+            'barbell-row',
+            'overhead-press',
+            'lat-pulldown',
+            'lateral-raise',
+            'dumbbell-bicep-curl',
+            'tricep-pushdown',
+        ],
+    },
+
+    {
+        id: 'lower-day',
+        name: 'Lower Body',
+        exerciseIds: [
+            'barbell-squat',
+            'romanian-deadlift',
+            'leg-press',
+            'leg-curl',
+            'hip-thrust',
+            'standing-calf-raise',
+        ],
+    },
 ];
+
+const EXTRA_STARTERS = defaultRoutines.filter(
+    (routine) =>
+        routine.id === 'upper-day' || routine.id === 'lower-day'
+);
 
 export function RoutineProvider({
     children,
@@ -108,8 +140,19 @@ export function RoutineProvider({
             if (savedData) {
                 const parsedRoutines: Routine[] =
                     JSON.parse(savedData);
+                const have = new Set(
+                    parsedRoutines.map((routine) => routine.id)
+                );
+                const missing = EXTRA_STARTERS.filter(
+                    (routine) => !have.has(routine.id)
+                );
+                const merged = [...parsedRoutines, ...missing];
 
-                setRoutines(parsedRoutines);
+                if (missing.length > 0) {
+                    saveToStorage(merged);
+                }
+
+                setRoutines(merged);
             }
         } catch (error) {
             console.log(

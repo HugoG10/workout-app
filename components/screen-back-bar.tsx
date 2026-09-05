@@ -1,4 +1,7 @@
 import {
+    ReactNode,
+} from 'react';
+import {
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -16,12 +19,14 @@ type Props = {
     label: string;
     fallback: Href;
     onBeforeBack?: () => void;
+    right?: ReactNode;
 };
 
 export function ScreenBackBar({
     label,
     fallback,
     onBeforeBack,
+    right,
 }: Props) {
     const insets = useSafeAreaInsets();
     const { colors } = useAppTheme();
@@ -77,6 +82,8 @@ export function ScreenBackBar({
                     {label}
                 </Text>
             </TouchableOpacity>
+
+            {right ? <View style={styles.right}>{right}</View> : null}
         </View>
     );
 }
@@ -86,6 +93,15 @@ const styles = StyleSheet.create({
         zIndex: 100,
         elevation: 100,
         borderBottomWidth: StyleSheet.hairlineWidth,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingRight: 12,
+    },
+
+    right: {
+        minHeight: 52,
+        justifyContent: 'center',
     },
 
     button: {

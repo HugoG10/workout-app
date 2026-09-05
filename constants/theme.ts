@@ -32,9 +32,16 @@ export type AppColors = {
     successSoft: string;
 };
 
+export const Layout = {
+    screenPadding: 20,
+    radius: 16,
+    radiusSm: 12,
+    titleSize: 32,
+};
+
 export const Palettes: Record<ColorScheme, AppColors> = {
     light: {
-        background: '#f5f5f7',
+        background: '#F2F2F7',
         card: '#ffffff',
         fill: '#f2f2f7',
         text: '#1c1c1e',

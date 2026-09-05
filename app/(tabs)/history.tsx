@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import {
     Pressable,
     ScrollView,
@@ -14,7 +15,13 @@ import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppColors } from '@/constants/theme';
 import { ScreenTip } from '@/components/screen-tip';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SearchField } from '@/components/ui/search-field';
+import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/hooks/use-app-theme';
+import { monthCells, trainedDayKeys } from '@/lib/recovery';
 import {
+    dayKey,
     formatDurationLong,
     fromPounds,
     workingSetCount,
@@ -23,11 +30,34 @@ import {
 
 export default function HistoryScreen() {
     const styles = useThemedStyles(createStyles);
+    const { colors } = useAppTheme();
 
     const insets = useScreenInsets();
     const { workouts, getWeekStats } = useHistory();
     const { weightUnit } = useSettings();
     const week = getWeekStats(weightUnit);
+    const [query, setQuery] = useState('');
+    const calendar = monthCells();
+    const trained = trainedDayKeys(workouts);
+    const today = dayKey(new Date());
+
+    const visibleWorkouts = useMemo(() => {
+        const needle = query.trim().toLowerCase();
+
+        if (!needle) {
+            return workouts;
+        }
+
+        return workouts.filter((workout) => {
+            if (workout.name.toLowerCase().includes(needle)) {
+                return true;
+            }
+
+            return workout.exercises.some((exercise) =>
+                exercise.name.toLowerCase().includes(needle)
+            );
+        });
+    }, [query, workouts]);
 
     function formatDuration(seconds: number) {
         return formatDurationLong(seconds);
@@ -86,21 +116,87 @@ export default function HistoryScreen() {
             ]}
             showsVerticalScrollIndicator={false}
         >
-            {/* HEADER */}
-
-            <Text style={styles.title}>
-                History
-            </Text>
-
-            <Text style={styles.subtitle}>
-                Track your training over time.
-            </Text>
+            <ScreenHeader
+                title="History"
+                subtitle="Your finished sessions."
+            />
 
             <ScreenTip
                 id="history"
                 title="Your sessions"
                 body="Finished workouts land here. Tap one to see every set you logged."
             />
+
+            {workouts.length > 0 && (
+                <>
+                    <SearchField
+                        value={query}
+                        onChangeText={setQuery}
+                        placeholder="Search workouts or exercises"
+                    />
+
+                    <View style={styles.calendarCard}>
+                        <Text style={styles.calendarLabel}>
+                            {calendar.label.toUpperCase()}
+                        </Text>
+                        <View style={styles.weekdayRow}>
+                            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(
+                                (day, index) => (
+                                    <Text
+                                        key={`${day}-${index}`}
+                                        style={styles.weekday}
+                                    >
+                                        {day}
+                                    </Text>
+                                )
+                            )}
+                        </View>
+                        <View style={styles.calendarGrid}>
+                            {calendar.cells.map((day, index) => {
+                                if (!day) {
+                                    return (
+                                        <View
+                                            key={`empty-${index}`}
+                                            style={styles.calendarCell}
+                                        />
+                                    );
+                                }
+
+                                const key = dayKey(
+                                    new Date(
+                                        calendar.year,
+                                        calendar.month,
+                                        day
+                                    )
+                                );
+
+                                return (
+                                    <View
+                                        key={key}
+                                        style={[
+                                            styles.calendarCell,
+                                            trained.has(key) &&
+                                                styles.calendarTrained,
+                                            key === today &&
+                                                styles.calendarToday,
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.calendarDay,
+                                                trained.has(key) &&
+                                                    styles.calendarDayOn,
+                                            ]}
+                                        >
+                                            {day}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+                </>
+            )}
 
             {workouts.length > 0 && (
                 <View style={styles.weekRow}>
@@ -161,7 +257,7 @@ export default function HistoryScreen() {
 
             {/* WORKOUTS */}
 
-            {workouts.map((workout) => {
+            {visibleWorkouts.map((workout) => {
                 const unit =
                     workout.weightUnit ?? 'lb';
 
@@ -234,6 +330,14 @@ export default function HistoryScreen() {
                                             styles.workoutDate
                                         }
                                     >
+                                        {workout.name}
+                                    </Text>
+
+                                    <Text
+                                        style={
+                                            styles.workoutMeta
+                                        }
+                                    >
                                         {formatDate(
                                             workout.date
                                         )}
@@ -263,11 +367,11 @@ export default function HistoryScreen() {
                                     </Text>
                                 </View>
 
-                                <Text
-                                    style={styles.arrow}
-                                >
-                                    ›
-                                </Text>
+                                <Ionicons
+                                    name="chevron-forward"
+                                    size={18}
+                                    color={colors.textFaint}
+                                />
                             </View>
 
                             {/* STATS */}
@@ -443,6 +547,77 @@ function createStyles(c: AppColors) {
         fontSize: 16,
         marginTop: 4,
         marginBottom: 10,
+    },
+
+    search: {
+        backgroundColor: c.card,
+        color: c.text,
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        fontSize: 16,
+        marginBottom: 14,
+    },
+
+    calendarCard: {
+        backgroundColor: c.card,
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 22,
+    },
+
+    calendarLabel: {
+        color: c.textMuted,
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 0.8,
+        marginBottom: 10,
+    },
+
+    weekdayRow: {
+        flexDirection: 'row',
+        marginBottom: 6,
+    },
+
+    weekday: {
+        flex: 1,
+        textAlign: 'center',
+        color: c.textFaint,
+        fontSize: 11,
+        fontWeight: '700',
+    },
+
+    calendarGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+
+    calendarCell: {
+        width: '14.28%',
+        aspectRatio: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+    },
+
+    calendarTrained: {
+        backgroundColor: c.tintSoft,
+    },
+
+    calendarToday: {
+        borderWidth: 1,
+        borderColor: c.tint,
+    },
+
+    calendarDay: {
+        color: c.textSecondary,
+        fontSize: 13,
+        fontWeight: '600',
+    },
+
+    calendarDayOn: {
+        color: c.tint,
+        fontWeight: '800',
     },
 
     weekRow: {

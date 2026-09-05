@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Constants from 'expo-constants';
@@ -6,6 +7,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 
+import { PasswordGate } from '@/components/password-gate';
 import { SettingsGroup, SettingsRow } from '@/components/settings-list';
 import { useAuth } from '@/context/auth-context';
 import { useHistory } from '@/context/history-context';
@@ -13,6 +15,8 @@ import { useRoutines } from '@/context/routine-context';
 import { useExerciseCatalog } from '@/context/exercise-catalog-context';
 import { useSettings } from '@/context/settings-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { appleHealthStatusLabel } from '@/lib/apple-health';
+import { musicServiceLabel } from '@/lib/music';
 
 function appearanceLabel(mode: string) {
     if (mode === 'dark') {
@@ -40,6 +44,8 @@ export default function SettingsScreen() {
         gymPlaylistUrl,
         setGymPlaylistUrl,
         setAppearance,
+        appleHealthEnabled,
+        setAppleHealthEnabled,
     } = useSettings();
     const { routines, replaceRoutines } = useRoutines();
     const {
@@ -52,7 +58,11 @@ export default function SettingsScreen() {
         faceIdEnabled,
         lock,
         removeAccount,
+        verifyPassword,
     } = useAuth();
+    const [gate, setGate] = useState<
+        'export' | 'import' | 'clear' | 'remove' | null
+    >(null);
     const { workouts, clearHistory, replaceWorkouts } = useHistory();
 
     const version =
@@ -70,20 +80,15 @@ export default function SettingsScreen() {
     }
 
     function confirmRemoveAccount() {
-        Alert.alert(
-            'Remove Account?',
-            'This deletes the login on this phone. Your workout history stays unless you clear it separately.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Remove Account',
-                    style: 'destructive',
-                    onPress: () => {
-                        removeAccount();
-                    },
-                },
-            ]
-        );
+        setGate('remove');
+    }
+
+    function requestExport() {
+        setGate('export');
+    }
+
+    function requestImport() {
+        setGate('import');
     }
 
     async function exportBackup() {
@@ -100,6 +105,7 @@ export default function SettingsScreen() {
                     musicService,
                     gymPlaylistUrl,
                     appearance,
+                    appleHealthEnabled,
                 },
             };
 
@@ -205,6 +211,12 @@ export default function SettingsScreen() {
                                 setAppearance(imported.appearance);
                             }
 
+                            if (typeof imported.appleHealthEnabled === 'boolean') {
+                                setAppleHealthEnabled(
+                                    imported.appleHealthEnabled
+                                );
+                            }
+
                             Alert.alert(
                                 'Backup restored',
                                 'Your data is back on this phone.'
@@ -230,20 +242,7 @@ export default function SettingsScreen() {
             return;
         }
 
-        Alert.alert(
-            'Clear Workout History?',
-            'This will permanently delete all of your saved workouts. This cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Clear History',
-                    style: 'destructive',
-                    onPress: () => {
-                        clearHistory();
-                    },
-                },
-            ]
-        );
+        setGate('clear');
     }
 
     return (
@@ -321,6 +320,26 @@ export default function SettingsScreen() {
                 />
                 <SettingsRow
                     colors={colors}
+                    icon="heart"
+                    iconColor="#FF2D55"
+                    label="Apple Health"
+                    value={appleHealthStatusLabel(appleHealthEnabled)}
+                    onPress={() =>
+                        router.push('/settings/health')
+                    }
+                />
+                <SettingsRow
+                    colors={colors}
+                    icon="musical-notes"
+                    iconColor="#FF2D55"
+                    label="Music"
+                    value={musicServiceLabel(musicService)}
+                    onPress={() =>
+                        router.push('/(tabs)/music')
+                    }
+                />
+                <SettingsRow
+                    colors={colors}
                     icon="bulb"
                     iconColor="#32D74B"
                     label="Show Tips Again"
@@ -350,14 +369,14 @@ export default function SettingsScreen() {
                     icon="download"
                     iconColor="#30D158"
                     label="Export Backup"
-                    onPress={exportBackup}
+                    onPress={requestExport}
                 />
                 <SettingsRow
                     colors={colors}
                     icon="cloud-upload"
                     iconColor="#0A84FF"
                     label="Restore Backup"
-                    onPress={importBackup}
+                    onPress={requestImport}
                 />
                 <SettingsRow
                     colors={colors}
@@ -421,6 +440,34 @@ export default function SettingsScreen() {
             >
                 Workout · {version}
             </Text>
+
+            <PasswordGate
+                visible={gate !== null}
+                title="Confirm password"
+                message="Enter your password to change data on this phone."
+                onCancel={() => setGate(null)}
+                onConfirm={async (password) => {
+                    await verifyPassword(password);
+                    const action = gate;
+                    setGate(null);
+
+                    if (action === 'export') {
+                        await exportBackup();
+                    }
+
+                    if (action === 'import') {
+                        await importBackup();
+                    }
+
+                    if (action === 'clear') {
+                        clearHistory();
+                    }
+
+                    if (action === 'remove') {
+                        await removeAccount();
+                    }
+                }}
+            />
         </ScrollView>
     );
 }

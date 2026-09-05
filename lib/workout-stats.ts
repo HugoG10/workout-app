@@ -44,6 +44,65 @@ export function firstWorkingSet<T extends LoggedSet>(
     return sets.find((set) => isWorkingSet(set)) ?? sets[0];
 }
 
+export function bumpNumber(value: string, delta: number) {
+    const current = Number(value) || 0;
+    const next = Math.max(0, current + delta);
+    const rounded = Math.round(next * 10) / 10;
+
+    if (Number.isInteger(rounded)) {
+        return String(rounded);
+    }
+
+    return rounded.toFixed(1);
+}
+
+export function nextWeightHint(
+    exercise: LoggedExercise,
+    unit: WeightUnit
+) {
+    const last = [...exercise.sets]
+        .reverse()
+        .find(
+            (set) =>
+                isWorkingSet(set) &&
+                Number(set.weight) > 0 &&
+                Number(set.reps) > 0
+        );
+
+    if (!last || exercise.tracking === 'duration') {
+        return null;
+    }
+
+    const weight = Number(last.weight);
+    const reps = Number(last.reps);
+
+    if (reps < 5) {
+        return null;
+    }
+
+    const step = unit === 'kg' ? 2.5 : 5;
+    const next = bumpNumber(String(weight), step);
+
+    return `${exercise.name} · last ${weight} × ${reps} → try ${next}`;
+}
+
+export function nextWeightHints(
+    workouts: { exercises: LoggedExercise[] }[],
+    unit: WeightUnit,
+    limit = 2
+) {
+    const latest = workouts[0];
+
+    if (!latest) {
+        return [];
+    }
+
+    return latest.exercises
+        .map((exercise) => nextWeightHint(exercise, unit))
+        .filter((hint): hint is string => Boolean(hint))
+        .slice(0, limit);
+}
+
 export function prefillFromPrevious(sets?: LoggedSet[]) {
     if (!sets?.length) {
         return undefined;

@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { useSettings } from '@/context/settings-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -10,6 +10,8 @@ export default function TrainingSettingsScreen() {
         setWeightUnit,
         defaultRestTime,
         setDefaultRestTime,
+        restAlertsEnabled,
+        setRestAlertsEnabled,
     } = useSettings();
 
     return (
@@ -193,6 +195,32 @@ export default function TrainingSettingsScreen() {
                     >
                         seconds
                     </Text>
+                    </View>
+
+                <View style={styles.alertRow}>
+                    <View style={styles.alertInfo}>
+                        <Text
+                            style={[styles.title, { color: colors.text }]}
+                        >
+                            Rest notifications
+                        </Text>
+                        <Text
+                            style={[
+                                styles.description,
+                                { color: colors.textSecondary, marginBottom: 0 },
+                            ]}
+                        >
+                            Alert you when rest ends if you leave the app.
+                        </Text>
+                    </View>
+                    <Switch
+                        value={restAlertsEnabled}
+                        onValueChange={setRestAlertsEnabled}
+                        trackColor={{
+                            false: colors.switchOff,
+                            true: colors.success,
+                        }}
+                    />
                 </View>
             </View>
         </ScrollView>
@@ -288,5 +316,16 @@ const styles = StyleSheet.create({
     customSuffix: {
         fontSize: 14,
         fontWeight: '600',
+    },
+
+    alertRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginTop: 22,
+    },
+
+    alertInfo: {
+        flex: 1,
     },
 });
