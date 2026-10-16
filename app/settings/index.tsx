@@ -46,6 +46,8 @@ export default function SettingsScreen() {
         setAppearance,
         appleHealthEnabled,
         setAppleHealthEnabled,
+        bodyWeightLb,
+        setBodyWeightLb,
     } = useSettings();
     const { routines, replaceRoutines } = useRoutines();
     const {
@@ -106,6 +108,7 @@ export default function SettingsScreen() {
                     gymPlaylistUrl,
                     appearance,
                     appleHealthEnabled,
+                    bodyWeightLb,
                 },
             };
 
@@ -215,6 +218,13 @@ export default function SettingsScreen() {
                                 setAppleHealthEnabled(
                                     imported.appleHealthEnabled
                                 );
+                            }
+
+                            if (
+                                typeof imported.bodyWeightLb === 'number' &&
+                                imported.bodyWeightLb > 0
+                            ) {
+                                setBodyWeightLb(imported.bodyWeightLb);
                             }
 
                             Alert.alert(

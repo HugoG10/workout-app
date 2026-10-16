@@ -5,6 +5,7 @@ export type LoggedSet = {
     weight?: string;
     reps?: string;
     duration?: string;
+    rir?: string;
     isWarmup?: boolean;
     completed?: boolean;
 };
@@ -75,15 +76,24 @@ export function nextWeightHint(
 
     const weight = Number(last.weight);
     const reps = Number(last.reps);
+    const rir = Number(last.rir);
+    const hasRir = (last.rir ?? '').trim() !== '' && !Number.isNaN(rir);
+    const rirLabel = last.rir === '4' ? '4+' : last.rir;
+
+    if (hasRir && rir < 3) {
+        return `${exercise.name} · last ${weight} × ${reps}, RIR ${rirLabel} → stay at ${weight}`;
+    }
 
     if (reps < 5) {
         return null;
     }
 
     const step = unit === 'kg' ? 2.5 : 5;
-    const next = bumpNumber(String(weight), step);
+    const heavier = bumpNumber(String(weight), step);
 
-    return `${exercise.name} · last ${weight} × ${reps} → try ${next}`;
+    return `${exercise.name} · last ${weight} × ${reps}${
+        hasRir ? `, RIR ${rirLabel}` : ''
+    } → try ${heavier}`;
 }
 
 export function nextWeightHints(
@@ -201,13 +211,15 @@ export function formatSetLabel(
 
 export function setVolume(
     set: LoggedSet,
-    unit: WeightUnit
+    unit: WeightUnit,
+    fallbackWeight = 0
 ) {
     if (set.isWarmup) {
         return 0;
     }
 
-    const weight = Number(set.weight) || 0;
+    const entered = Number(set.weight) || 0;
+    const weight = entered > 0 ? entered : fallbackWeight;
     const reps = Number(set.reps) || 0;
 
     return toPounds(weight, unit) * reps;
@@ -215,17 +227,27 @@ export function setVolume(
 
 export function workoutVolumeLb(
     exercises: LoggedExercise[],
-    unit: WeightUnit
+    unit: WeightUnit,
+    bodyWeightLb?: number | null
 ) {
-    return exercises.reduce(
-        (total, exercise) =>
+    const fallback =
+        bodyWeightLb && bodyWeightLb > 0
+            ? fromPounds(bodyWeightLb, unit)
+            : 0;
+
+    return exercises.reduce((total, exercise) => {
+        const bodyweightFallback =
+            exercise.tracking === 'bodyweight' ? fallback : 0;
+
+        return (
             total +
             exercise.sets.reduce(
-                (sum, set) => sum + setVolume(set, unit),
+                (sum, set) =>
+                    sum + setVolume(set, unit, bodyweightFallback),
                 0
-            ),
-        0
-    );
+            )
+        );
+    }, 0);
 }
 
 export function workingSetCount(exercises: LoggedExercise[]) {

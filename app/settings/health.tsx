@@ -117,7 +117,7 @@ export default function HealthSettingsScreen() {
                                 { color: colors.textSecondary, marginBottom: 0 },
                             ]}
                         >
-                            After you finish, the session is written to Apple Health so it appears in Fitness and on Apple Watch.
+                            Starting a workout can open a strength session on Apple Watch. Finishing it saves the workout to Apple Health.
                         </Text>
                     </View>
                     <Switch
@@ -161,7 +161,7 @@ export default function HealthSettingsScreen() {
             ) : null}
 
             <Text style={[styles.note, { color: colors.textMuted }]}>
-                This does not log sets on the Watch. Logging on-wrist needs a separate Watch app. Workout saves the finished session so the Watch can show it.
+                The Watch can show the session and record heart rate. Set logging stays in this app. Apple Health needs a development build, not Expo Go.
             </Text>
         </ScrollView>
     );

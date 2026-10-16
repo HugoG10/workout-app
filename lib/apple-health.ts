@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 export const APPLE_HEALTH_ENABLED_KEY = 'apple-health-enabled';
+export const BODY_WEIGHT_LB_KEY = 'body-weight-lb';
 
 export type AppleHealthAvailability =
     | 'ready'
@@ -96,9 +97,64 @@ export async function isAppleHealthEnabled() {
     }
 }
 
-function estimatedActiveEnergyKcal(durationSeconds: number) {
+async function storedBodyWeightLb() {
+    try {
+        const value = await AsyncStorage.getItem(BODY_WEIGHT_LB_KEY);
+        const parsed = Number(value);
+        return parsed > 0 ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+function estimatedActiveEnergyKcal(
+    durationSeconds: number,
+    bodyWeightLb: number | null
+) {
     const minutes = Math.max(1, durationSeconds / 60);
-    return Math.round(minutes * 6);
+
+    if (!bodyWeightLb) {
+        return Math.round(minutes * 6);
+    }
+
+    const kg = bodyWeightLb / 2.2046226218;
+    return Math.max(1, Math.round(6 * kg * (minutes / 60)));
+}
+
+export async function beginLiveHealthWorkout() {
+    const enabled = await isAppleHealthEnabled();
+
+    if (!enabled || !canUseAppleHealth()) {
+        return false;
+    }
+
+    const kit = loadHealthKit();
+
+    if (!kit || !kit.isHealthDataAvailable()) {
+        return false;
+    }
+
+    try {
+        const allowed = await ensureWriteAccess(kit);
+
+        if (!allowed) {
+            return false;
+        }
+
+        const activityType =
+            kit.WorkoutActivityType.traditionalStrengthTraining ??
+            TRADITIONAL_STRENGTH_TRAINING;
+
+        await kit.startWatchApp({
+            activityType,
+            locationType: kit.WorkoutSessionLocationType.indoor,
+        });
+
+        return true;
+    } catch (error) {
+        console.log('Apple Watch session did not start:', error);
+        return false;
+    }
 }
 
 function workoutWindow(workout: HealthWorkoutPayload) {
@@ -175,6 +231,7 @@ export async function syncFinishedWorkout(
         const activityType =
             kit.WorkoutActivityType.traditionalStrengthTraining ??
             TRADITIONAL_STRENGTH_TRAINING;
+        const bodyWeightLb = await storedBodyWeightLb();
 
         await kit.saveWorkoutSample(
             activityType,
@@ -183,7 +240,8 @@ export async function syncFinishedWorkout(
             end,
             {
                 energyBurned: estimatedActiveEnergyKcal(
-                    workout.durationSeconds
+                    workout.durationSeconds,
+                    bodyWeightLb
                 ),
             },
             {

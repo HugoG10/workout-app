@@ -11,12 +11,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { TrackingType, trackingFor } from '@/data/exercises';
 import { useExerciseCatalog } from '@/context/exercise-catalog-context';
+import { beginLiveHealthWorkout } from '@/lib/apple-health';
 
 export type WorkoutSet = {
     id: number;
     weight: string;
     reps: string;
     duration: string;
+    rir: string;
     completed: boolean;
     isWarmup: boolean;
 };
@@ -36,6 +38,7 @@ export type SetPrefill = {
     weight?: string;
     reps?: string;
     duration?: string;
+    rir?: string;
     isWarmup?: boolean;
 };
 
@@ -80,6 +83,12 @@ type WorkoutContextType = {
     ) => void;
 
     updateDuration: (
+        exerciseId: string,
+        setId: number,
+        value: string
+    ) => void;
+
+    updateRir: (
         exerciseId: string,
         setId: number,
         value: string
@@ -136,6 +145,7 @@ function normalizeSet(raw: Partial<WorkoutSet> & { id: number }): WorkoutSet {
         weight: raw.weight ?? '',
         reps: raw.reps ?? '',
         duration: raw.duration ?? '',
+        rir: raw.rir ?? '',
         completed: raw.completed ?? false,
         isWarmup: raw.isWarmup ?? false,
     };
@@ -252,6 +262,7 @@ export function WorkoutProvider({
             weight: prefill?.weight ?? '',
             reps: prefill?.reps ?? '',
             duration: prefill?.duration ?? '',
+            rir: prefill?.rir ?? '',
             completed: false,
             isWarmup: prefill?.isWarmup ?? false,
         };
@@ -292,6 +303,7 @@ export function WorkoutProvider({
         setWorkoutStartedAt(Date.now());
         setRestEndsAtState(null);
         setWorkoutNameState(name?.trim() || 'Workout');
+        void beginLiveHealthWorkout();
     }
 
     function addExercise(exerciseId: string, prefill?: SetPrefill) {
@@ -330,6 +342,7 @@ export function WorkoutProvider({
         setWorkoutStartedAt(Date.now());
         setRestEndsAtState(null);
         setWorkoutNameState(name?.trim() || 'Workout');
+        void beginLiveHealthWorkout();
     }
 
     function startFromHistory(
@@ -351,6 +364,7 @@ export function WorkoutProvider({
         setWorkoutStartedAt(Date.now());
         setRestEndsAtState(null);
         setWorkoutNameState(name?.trim() || 'Workout');
+        void beginLiveHealthWorkout();
     }
 
     function replaceExercise(
@@ -440,6 +454,7 @@ export function WorkoutProvider({
                                       weight: lastSet.weight,
                                       reps: lastSet.reps,
                                       duration: lastSet.duration,
+                                      rir: lastSet.rir,
                                       isWarmup: warmup,
                                   }
                                 : { isWarmup: warmup }
@@ -552,6 +567,17 @@ export function WorkoutProvider({
         }));
     }
 
+    function updateRir(
+        exerciseId: string,
+        setId: number,
+        value: string
+    ) {
+        mapSet(exerciseId, setId, (set) => ({
+            ...set,
+            rir: value,
+        }));
+    }
+
     function updateRestSeconds(
         exerciseId: string,
         seconds: number
@@ -641,6 +667,7 @@ export function WorkoutProvider({
                 updateWeight,
                 updateReps,
                 updateDuration,
+                updateRir,
                 updateNotes,
                 updateRestSeconds,
                 toggleCompleted,

@@ -35,8 +35,8 @@ export default function HistoryScreen() {
 
     const insets = useScreenInsets();
     const { workouts, getWeekStats } = useHistory();
-    const { weightUnit } = useSettings();
-    const week = getWeekStats(weightUnit);
+    const { weightUnit, bodyWeightLb } = useSettings();
+    const week = getWeekStats(weightUnit, bodyWeightLb);
     const [query, setQuery] = useState('');
     const [monthAnchor, setMonthAnchor] = useState(
         () => new Date()
@@ -117,7 +117,10 @@ export default function HistoryScreen() {
         exercises: typeof workouts[number]['exercises'],
         unit: 'lb' | 'kg'
     ) {
-        return fromPounds(workoutVolumeLb(exercises, unit), unit);
+        return fromPounds(
+            workoutVolumeLb(exercises, unit, bodyWeightLb),
+            unit
+        );
     }
 
     function getMonthLabel(date: string) {

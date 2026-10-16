@@ -4,6 +4,8 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Link } from 'expo-router';
 
 import { useHistory } from '@/context/history-context';
+import { useRoutines } from '@/context/routine-context';
+import { promptSaveAsRoutine } from '@/lib/save-as-routine';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -15,15 +17,15 @@ export default function WorkoutRecapScreen() {
     const { colors } = useAppTheme();
     const insets = useScreenInsets();
     const { lastRecap, workouts, updateWorkout } = useHistory();
+    const { routines, addRoutine, updateRoutine } = useRoutines();
     const [name, setName] = useState(lastRecap?.name ?? 'Workout');
+    const saved = workouts.find(
+        (item) => item.id === lastRecap?.workoutId
+    );
 
     function commitName(value: string) {
         const next = value.trim() || 'Workout';
         setName(next);
-
-        const saved = workouts.find(
-            (item) => item.id === lastRecap?.workoutId
-        );
 
         if (saved) {
             updateWorkout({ ...saved, name: next });
@@ -48,6 +50,27 @@ export default function WorkoutRecapScreen() {
                     <Text style={styles.secondaryText}>View history</Text>
                 </Pressable>
             </Link>
+
+            {saved ? (
+                <Pressable
+                    style={styles.secondary}
+                    onPress={() =>
+                        promptSaveAsRoutine({
+                            name,
+                            exerciseIds: saved.exercises.map(
+                                (exercise) => exercise.id
+                            ),
+                            routines,
+                            addRoutine,
+                            updateRoutine,
+                        })
+                    }
+                >
+                    <Text style={styles.secondaryText}>
+                        Save as routine
+                    </Text>
+                </Pressable>
+            ) : null}
         </View>
     );
 

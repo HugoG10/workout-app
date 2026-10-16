@@ -56,6 +56,7 @@ export default function ActiveWorkoutScreen() {
         updateWeight,
         updateReps,
         updateDuration,
+        updateRir,
         updateNotes,
         updateRestSeconds,
         toggleCompleted,
@@ -75,6 +76,7 @@ export default function ActiveWorkoutScreen() {
     const {
         defaultRestTime,
         weightUnit,
+        bodyWeightLb,
         musicBarCollapsed,
         setMusicBarCollapsed,
     } = useSettings();
@@ -146,11 +148,13 @@ export default function ActiveWorkoutScreen() {
         setId: number,
         weight: string,
         reps: string,
-        duration: string
+        duration: string,
+        rir = ''
     ) {
         updateWeight(exerciseId, setId, weight);
         updateReps(exerciseId, setId, reps);
         updateDuration(exerciseId, setId, duration);
+        updateRir(exerciseId, setId, rir);
         Haptics.selectionAsync();
     }
 
@@ -184,7 +188,8 @@ export default function ActiveWorkoutScreen() {
             setId,
             source.weight ?? '',
             source.reps ?? '',
-            source.duration ?? ''
+            source.duration ?? '',
+            source.rir ?? ''
         );
     }
 
@@ -277,7 +282,8 @@ export default function ActiveWorkoutScreen() {
                 cleanedExercises,
                 workoutTime,
                 weightUnit,
-                workoutName
+                workoutName,
+                bodyWeightLb
             );
 
             clearWorkout();
@@ -785,9 +791,14 @@ export default function ActiveWorkoutScreen() {
                                                         !item.isWarmup
                                                 ).length;
 
+                                        const showRir =
+                                            exercise.tracking !==
+                                                'duration' &&
+                                            !set.isWarmup;
+
                                         return (
+                                            <View key={set.id}>
                                             <View
-                                                key={set.id}
                                                 style={[
                                                     styles.setRow,
 
@@ -971,6 +982,52 @@ export default function ActiveWorkoutScreen() {
                                                         ⋯
                                                     </Text>
                                                 </Pressable>
+                                            </View>
+                                            {showRir ? (
+                                                <View style={styles.rirRow}>
+                                                    <Text style={styles.rirLabel}>
+                                                        RIR
+                                                    </Text>
+                                                    {['0', '1', '2', '3', '4'].map(
+                                                        (value) => {
+                                                            const selected =
+                                                                set.rir === value;
+
+                                                            return (
+                                                                <Pressable
+                                                                    key={value}
+                                                                    onPress={() =>
+                                                                        updateRir(
+                                                                            exercise.id,
+                                                                            set.id,
+                                                                            selected
+                                                                                ? ''
+                                                                                : value
+                                                                        )
+                                                                    }
+                                                                    style={[
+                                                                        styles.rirChip,
+                                                                        selected &&
+                                                                            styles.rirChipOn,
+                                                                    ]}
+                                                                >
+                                                                    <Text
+                                                                        style={[
+                                                                            styles.rirChipText,
+                                                                            selected &&
+                                                                                styles.rirChipTextOn,
+                                                                        ]}
+                                                                    >
+                                                                        {value === '4'
+                                                                            ? '4+'
+                                                                            : value}
+                                                                    </Text>
+                                                                </Pressable>
+                                                            );
+                                                        }
+                                                    )}
+                                                </View>
+                                            ) : null}
                                             </View>
                                         );
                                     }
@@ -1442,7 +1499,46 @@ function createStyles(c: AppColors) {
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 12,
-        marginBottom: 7,
+    },
+
+    rirRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 4,
+        marginBottom: 10,
+        paddingLeft: 34,
+    },
+
+    rirLabel: {
+        color: c.textFaint,
+        fontSize: 11,
+        fontWeight: '700',
+        width: 28,
+    },
+
+    rirChip: {
+        minWidth: 32,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: c.fill,
+        paddingHorizontal: 8,
+    },
+
+    rirChipOn: {
+        backgroundColor: c.text,
+    },
+
+    rirChipText: {
+        color: c.textSecondary,
+        fontSize: 13,
+        fontWeight: '700',
+    },
+
+    rirChipTextOn: {
+        color: c.background,
     },
 
     completedSetRow: {

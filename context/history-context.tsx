@@ -87,13 +87,17 @@ type HistoryContextType = {
         displayUnit: WeightUnit
     ) => ExerciseProgressPoint[];
 
-    getWeekStats: (displayUnit: WeightUnit) => WeekStats;
+    getWeekStats: (
+        displayUnit: WeightUnit,
+        bodyWeight?: number | null
+    ) => WeekStats;
 
     saveWorkout: (
         exercises: WorkoutExercise[],
         durationSeconds: number,
         weightUnit: WeightUnit,
-        name?: string
+        name?: string,
+        bodyWeight?: number | null
     ) => WorkoutRecap;
 
     updateWorkout: (workout: SavedWorkout) => void;
@@ -126,6 +130,7 @@ function normalizeWorkout(
             sets: exercise.sets.map((set) => ({
                 ...set,
                 duration: set.duration ?? '',
+                rir: set.rir ?? '',
                 isWarmup: set.isWarmup ?? false,
             })),
         })),
@@ -371,7 +376,10 @@ export function HistoryProvider({
         return streak;
     }
 
-    function getWeekStats(displayUnit: WeightUnit): WeekStats {
+    function getWeekStats(
+        displayUnit: WeightUnit,
+        bodyWeight?: number | null
+    ): WeekStats {
         const weekStart = startOfWeek();
 
         const weekly = workouts.filter(
@@ -383,7 +391,8 @@ export function HistoryProvider({
                 total +
                 workoutVolumeLb(
                     workout.exercises,
-                    workout.weightUnit ?? 'lb'
+                    workout.weightUnit ?? 'lb',
+                    bodyWeight
                 ),
             0
         );
@@ -406,7 +415,8 @@ export function HistoryProvider({
     function buildRecap(
         exercises: WorkoutExercise[],
         durationSeconds: number,
-        weightUnit: WeightUnit
+        weightUnit: WeightUnit,
+        bodyWeight?: number | null
     ): WorkoutRecap {
         const prs: WorkoutRecap['prs'] = [];
         let insight: string | null = null;
@@ -474,7 +484,7 @@ export function HistoryProvider({
             name: 'Workout',
             durationSeconds,
             volume: fromPounds(
-                workoutVolumeLb(exercises, weightUnit),
+                workoutVolumeLb(exercises, weightUnit, bodyWeight),
                 weightUnit
             ),
             setCount: workingSetCount(exercises),
@@ -489,7 +499,8 @@ export function HistoryProvider({
         exercises: WorkoutExercise[],
         durationSeconds: number,
         weightUnit: WeightUnit,
-        name?: string
+        name?: string,
+        bodyWeight?: number | null
     ) {
         const workout: SavedWorkout = {
             id: Date.now(),
@@ -504,7 +515,8 @@ export function HistoryProvider({
             ...buildRecap(
                 exercises,
                 durationSeconds,
-                weightUnit
+                weightUnit,
+                bodyWeight
             ),
             workoutId: workout.id,
             name: workout.name,

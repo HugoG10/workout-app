@@ -11,7 +11,10 @@ import { Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppearanceMode } from '@/constants/theme';
-import { APPLE_HEALTH_ENABLED_KEY } from '@/lib/apple-health';
+import {
+    APPLE_HEALTH_ENABLED_KEY,
+    BODY_WEIGHT_LB_KEY,
+} from '@/lib/apple-health';
 import { MusicService } from '@/lib/music';
 
 export type WeightUnit = 'lb' | 'kg';
@@ -82,6 +85,10 @@ type SettingsContextType = {
     appleHealthEnabled: boolean;
 
     setAppleHealthEnabled: (enabled: boolean) => void;
+
+    bodyWeightLb: number | null;
+
+    setBodyWeightLb: (pounds: number | null) => void;
 
     loading: boolean;
 };
@@ -169,6 +176,10 @@ export function SettingsProvider({
     const [appleHealthEnabled, setAppleHealthEnabledState] =
         useState(false);
 
+    const [bodyWeightLb, setBodyWeightLbState] = useState<
+        number | null
+    >(null);
+
     const [loading, setLoading] =
         useState(true);
 
@@ -189,6 +200,7 @@ export function SettingsProvider({
                 savedLockAfter,
                 savedRestAlerts,
                 savedAppleHealth,
+                savedBodyWeight,
             ] = await Promise.all([
                 AsyncStorage.getItem(
                     REST_TIME_KEY
@@ -228,6 +240,10 @@ export function SettingsProvider({
 
                 AsyncStorage.getItem(
                     APPLE_HEALTH_ENABLED_KEY
+                ),
+
+                AsyncStorage.getItem(
+                    BODY_WEIGHT_LB_KEY
                 ),
             ]);
 
@@ -316,6 +332,11 @@ export function SettingsProvider({
 
             if (savedAppleHealth === 'true') {
                 setAppleHealthEnabledState(true);
+            }
+
+            const parsedBodyWeight = Number(savedBodyWeight);
+            if (parsedBodyWeight > 0) {
+                setBodyWeightLbState(parsedBodyWeight);
             }
         } catch (error) {
             console.log(
@@ -475,6 +496,22 @@ export function SettingsProvider({
         });
     }
 
+    function setBodyWeightLb(pounds: number | null) {
+        const next =
+            pounds && pounds > 0 ? pounds : null;
+        setBodyWeightLbState(next);
+        const write = next
+            ? AsyncStorage.setItem(
+                  BODY_WEIGHT_LB_KEY,
+                  String(next)
+              )
+            : AsyncStorage.removeItem(BODY_WEIGHT_LB_KEY);
+
+        write.catch((error) => {
+            console.log('Failed to save body weight:', error);
+        });
+    }
+
     function setAppleHealthEnabled(enabled: boolean) {
         setAppleHealthEnabledState(enabled);
         AsyncStorage.setItem(
@@ -518,6 +555,9 @@ export function SettingsProvider({
 
                 appleHealthEnabled,
                 setAppleHealthEnabled,
+
+                bodyWeightLb,
+                setBodyWeightLb,
 
                 loading,
             }}

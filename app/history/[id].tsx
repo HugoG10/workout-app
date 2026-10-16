@@ -19,6 +19,9 @@ import {
 } from 'expo-router';
 
 import { useHistory } from '@/context/history-context';
+import { useRoutines } from '@/context/routine-context';
+import { useSettings } from '@/context/settings-context';
+import { promptSaveAsRoutine } from '@/lib/save-as-routine';
 import {
     WorkoutExercise,
     WorkoutSet,
@@ -64,6 +67,8 @@ export default function WorkoutDetailScreen() {
         updateWorkout,
     } = useHistory();
     const { isWorkoutActive, startFromHistory } = useWorkout();
+    const { routines, addRoutine, updateRoutine } = useRoutines();
+    const { bodyWeightLb } = useSettings();
 
     const [editing, setEditing] = useState(false);
     const [draftName, setDraftName] = useState('');
@@ -119,7 +124,7 @@ export default function WorkoutDetailScreen() {
     const totalSets = workingSetCount(exercises);
 
     const totalVolume = fromPounds(
-        workoutVolumeLb(exercises, unit),
+        workoutVolumeLb(exercises, unit, bodyWeightLb),
         unit
     );
 
@@ -739,6 +744,30 @@ export default function WorkoutDetailScreen() {
             )}
 
             {/* DELETE */}
+
+            {!editing ? (
+                <Pressable
+                    style={({ pressed }) => [
+                        styles.repeatButton,
+                        pressed && styles.deleteButtonPressed,
+                    ]}
+                    onPress={() =>
+                        promptSaveAsRoutine({
+                            name: workout.name,
+                            exerciseIds: workout.exercises.map(
+                                (exercise) => exercise.id
+                            ),
+                            routines,
+                            addRoutine,
+                            updateRoutine,
+                        })
+                    }
+                >
+                    <Text style={styles.repeatText}>
+                        Save as Routine
+                    </Text>
+                </Pressable>
+            ) : null}
 
             {!editing ? (
                 <Pressable

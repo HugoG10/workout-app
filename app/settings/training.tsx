@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { useSettings } from '@/context/settings-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { fromPounds, toPounds } from '@/lib/workout-stats';
 
 export default function TrainingSettingsScreen() {
     const { colors } = useAppTheme();
@@ -12,7 +14,37 @@ export default function TrainingSettingsScreen() {
         setDefaultRestTime,
         restAlertsEnabled,
         setRestAlertsEnabled,
+        bodyWeightLb,
+        setBodyWeightLb,
+        loading,
     } = useSettings();
+    const [bodyWeightText, setBodyWeightText] = useState('');
+    const loadedWeight = useRef(false);
+    const shownUnit = useRef(weightUnit);
+
+    useEffect(() => {
+        if (loading) {
+            return;
+        }
+
+        const unitChanged = shownUnit.current !== weightUnit;
+
+        if (loadedWeight.current && !unitChanged) {
+            return;
+        }
+
+        loadedWeight.current = true;
+        shownUnit.current = weightUnit;
+        setBodyWeightText(
+            bodyWeightLb
+                ? String(
+                      Math.round(
+                          fromPounds(bodyWeightLb, weightUnit) * 10
+                      ) / 10
+                  )
+                : ''
+        );
+    }, [loading, weightUnit, bodyWeightLb]);
 
     return (
         <ScrollView
@@ -86,6 +118,74 @@ export default function TrainingSettingsScreen() {
                             </Pressable>
                         );
                     })}
+                </View>
+            </View>
+
+            <Text
+                style={[
+                    styles.section,
+                    { color: colors.textMuted },
+                ]}
+            >
+                BODY WEIGHT
+            </Text>
+
+            <View
+                style={[
+                    styles.card,
+                    { backgroundColor: colors.card },
+                ]}
+            >
+                <Text style={[styles.title, { color: colors.text }]}>
+                    Body weight
+                </Text>
+                <Text
+                    style={[
+                        styles.description,
+                        { color: colors.textSecondary },
+                    ]}
+                >
+                    Used for bodyweight exercise volume and the Apple Health calorie estimate.
+                </Text>
+                <View
+                    style={[
+                        styles.customRow,
+                        { backgroundColor: colors.fill },
+                    ]}
+                >
+                    <TextInput
+                        keyboardType="decimal-pad"
+                        value={bodyWeightText}
+                        placeholder="0"
+                        placeholderTextColor={colors.textFaint}
+                        onChangeText={(value) => {
+                            setBodyWeightText(value);
+                            const parsed = Number(value);
+
+                            if (value.trim() === '') {
+                                setBodyWeightLb(null);
+                                return;
+                            }
+
+                            if (!Number.isNaN(parsed) && parsed > 0) {
+                                setBodyWeightLb(
+                                    toPounds(parsed, weightUnit)
+                                );
+                            }
+                        }}
+                        style={[
+                            styles.customInput,
+                            { color: colors.text },
+                        ]}
+                    />
+                    <Text
+                        style={[
+                            styles.customSuffix,
+                            { color: colors.textMuted },
+                        ]}
+                    >
+                        {weightUnit}
+                    </Text>
                 </View>
             </View>
 
