@@ -244,7 +244,9 @@ function createStyles(c: AppColors) {
     input: {
         backgroundColor: c.card,
         color: c.text,
-        borderRadius: 14,
+        borderRadius: 16,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.line,
         paddingHorizontal: 16,
         paddingVertical: 15,
         fontSize: 17,
@@ -252,10 +254,11 @@ function createStyles(c: AppColors) {
     },
 
     button: {
-        backgroundColor: c.tint,
-        borderRadius: 14,
-        paddingVertical: 16,
+        backgroundColor: c.text,
+        borderRadius: 27,
+        minHeight: 54,
         alignItems: 'center',
+        justifyContent: 'center',
         marginTop: 8,
     },
 
@@ -264,7 +267,7 @@ function createStyles(c: AppColors) {
     },
 
     buttonText: {
-        color: c.onTint,
+        color: c.background,
         fontSize: 17,
         fontWeight: '700',
     },

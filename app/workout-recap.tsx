@@ -1,8 +1,12 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { router } from 'expo-router';
+import { Link } from 'expo-router';
 
 import { useHistory } from '@/context/history-context';
+import { useRoutines } from '@/context/routine-context';
+import { promptSaveAsRoutine } from '@/lib/save-as-routine';
+import { useAppTheme } from '@/hooks/use-app-theme';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppColors } from '@/constants/theme';
@@ -10,8 +14,65 @@ import { formatDurationLong } from '@/lib/workout-stats';
 
 export default function WorkoutRecapScreen() {
     const styles = useThemedStyles(createStyles);
+    const { colors } = useAppTheme();
     const insets = useScreenInsets();
-    const { lastRecap } = useHistory();
+    const { lastRecap, workouts, updateWorkout } = useHistory();
+    const { routines, addRoutine, updateRoutine } = useRoutines();
+    const [name, setName] = useState(lastRecap?.name ?? 'Workout');
+    const saved = workouts.find(
+        (item) => item.id === lastRecap?.workoutId
+    );
+
+    function commitName(value: string) {
+        const next = value.trim() || 'Workout';
+        setName(next);
+
+        if (saved) {
+            updateWorkout({ ...saved, name: next });
+        }
+    }
+
+    const actions = (
+        <View
+            style={[
+                styles.actions,
+                { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+        >
+            <Link href="/(tabs)" dismissTo asChild>
+                <Pressable style={styles.button}>
+                    <Text style={styles.buttonText}>Done</Text>
+                </Pressable>
+            </Link>
+
+            <Link href="/history" dismissTo asChild>
+                <Pressable style={styles.secondary}>
+                    <Text style={styles.secondaryText}>View history</Text>
+                </Pressable>
+            </Link>
+
+            {saved ? (
+                <Pressable
+                    style={styles.secondary}
+                    onPress={() =>
+                        promptSaveAsRoutine({
+                            name,
+                            exerciseIds: saved.exercises.map(
+                                (exercise) => exercise.id
+                            ),
+                            routines,
+                            addRoutine,
+                            updateRoutine,
+                        })
+                    }
+                >
+                    <Text style={styles.secondaryText}>
+                        Save as routine
+                    </Text>
+                </Pressable>
+            ) : null}
+        </View>
+    );
 
     if (!lastRecap) {
         return (
@@ -22,88 +83,82 @@ export default function WorkoutRecapScreen() {
                 ]}
             >
                 <Text style={styles.title}>Workout saved</Text>
-                <Pressable
-                    style={styles.button}
-                    onPress={() => router.replace('/')}
-                >
-                    <Text style={styles.buttonText}>Done</Text>
-                </Pressable>
+                {actions}
             </View>
         );
     }
 
     return (
-        <ScrollView
-            style={styles.screen}
-            contentContainerStyle={[
-                styles.content,
-                { paddingTop: insets.top + 24 },
-            ]}
-        >
-            <Text style={styles.kicker}>WORKOUT COMPLETE</Text>
-            <Text style={styles.title}>Nice work</Text>
-
-            {lastRecap.insight ? (
-                <View style={styles.insight}>
-                    <Text style={styles.insightText}>
-                        {lastRecap.insight}
-                    </Text>
-                </View>
-            ) : null}
-
-            <View style={styles.stats}>
-                <View style={styles.stat}>
-                    <Text style={styles.statValue}>
-                        {formatDurationLong(lastRecap.durationSeconds)}
-                    </Text>
-                    <Text style={styles.statLabel}>TIME</Text>
-                </View>
-                <View style={styles.stat}>
-                    <Text style={styles.statValue}>
-                        {Math.round(lastRecap.volume).toLocaleString()}
-                    </Text>
-                    <Text style={styles.statLabel}>
-                        VOLUME {lastRecap.unit.toUpperCase()}
-                    </Text>
-                </View>
-                <View style={styles.stat}>
-                    <Text style={styles.statValue}>
-                        {lastRecap.setCount}
-                    </Text>
-                    <Text style={styles.statLabel}>SETS</Text>
-                </View>
-            </View>
-
-            {lastRecap.prs.length > 0 ? (
-                <View style={styles.prCard}>
-                    <Text style={styles.sectionTitle}>PRs</Text>
-                    {lastRecap.prs.map((pr) => (
-                        <View key={pr.name} style={styles.prRow}>
-                            <Text style={styles.prName}>{pr.name}</Text>
-                            <Text style={styles.prDetail}>{pr.detail}</Text>
-                        </View>
-                    ))}
-                </View>
-            ) : (
-                <Text style={styles.emptyPrs}>
-                    No PRs this session. The work still counts.
-                </Text>
-            )}
-
-            <Pressable
-                style={styles.button}
-                onPress={() => router.replace('/')}
+        <View style={styles.screen}>
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={[
+                    styles.content,
+                    { paddingTop: insets.top + 24 },
+                ]}
             >
-                <Text style={styles.buttonText}>Done</Text>
-            </Pressable>
+                <Text style={styles.kicker}>WORKOUT COMPLETE</Text>
+                <TextInput
+                    style={styles.title}
+                    value={name}
+                    onChangeText={setName}
+                    onEndEditing={(event) =>
+                        commitName(event.nativeEvent.text)
+                    }
+                    placeholder="Workout"
+                    placeholderTextColor={colors.textFaint}
+                />
 
-            <Pressable
-                onPress={() => router.replace('/history')}
-                style={styles.secondary}
-            >
-                <Text style={styles.secondaryText}>View history</Text>
-            </Pressable>
-        </ScrollView>
+                {lastRecap.insight ? (
+                    <View style={styles.insight}>
+                        <Text style={styles.insightText}>
+                            {lastRecap.insight}
+                        </Text>
+                    </View>
+                ) : null}
+
+                <View style={styles.stats}>
+                    <View style={styles.stat}>
+                        <Text style={styles.statValue}>
+                            {formatDurationLong(lastRecap.durationSeconds)}
+                        </Text>
+                        <Text style={styles.statLabel}>TIME</Text>
+                    </View>
+                    <View style={styles.stat}>
+                        <Text style={styles.statValue}>
+                            {Math.round(lastRecap.volume).toLocaleString()}
+                        </Text>
+                        <Text style={styles.statLabel}>
+                            VOLUME {lastRecap.unit.toUpperCase()}
+                        </Text>
+                    </View>
+                    <View style={styles.stat}>
+                        <Text style={styles.statValue}>
+                            {lastRecap.setCount}
+                        </Text>
+                        <Text style={styles.statLabel}>SETS</Text>
+                    </View>
+                </View>
+
+                {lastRecap.prs.length > 0 ? (
+                    <View style={styles.prCard}>
+                        <Text style={styles.sectionTitle}>PRs</Text>
+                        {lastRecap.prs.map((pr) => (
+                            <View key={pr.name} style={styles.prRow}>
+                                <Text style={styles.prName}>{pr.name}</Text>
+                                <Text style={styles.prDetail}>{pr.detail}</Text>
+                            </View>
+                        ))}
+                    </View>
+                ) : (
+                    <Text style={styles.emptyPrs}>
+                        No PRs this session. The work still counts.
+                    </Text>
+                )}
+            </ScrollView>
+
+            {actions}
+        </View>
     );
 }
 
@@ -113,9 +168,12 @@ function createStyles(c: AppColors) {
             flex: 1,
             backgroundColor: c.background,
         },
+        scroll: {
+            flex: 1,
+        },
         content: {
             padding: 24,
-            paddingBottom: 60,
+            paddingBottom: 24,
         },
         kicker: {
             color: c.success,
@@ -193,12 +251,18 @@ function createStyles(c: AppColors) {
             marginTop: 22,
             lineHeight: 22,
         },
+        actions: {
+            paddingHorizontal: 24,
+            paddingTop: 8,
+            backgroundColor: c.background,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: c.separator,
+        },
         button: {
             backgroundColor: c.tint,
             borderRadius: 14,
             paddingVertical: 16,
             alignItems: 'center',
-            marginTop: 28,
         },
         buttonText: {
             color: c.onTint,

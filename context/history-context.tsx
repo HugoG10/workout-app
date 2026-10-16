@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { WeightUnit } from '@/context/settings-context';
 import { WorkoutExercise } from '@/context/workout-context';
+import { syncFinishedWorkout } from '@/lib/apple-health';
 import {
     bestWorkingSet,
     dayKey,
@@ -24,6 +25,7 @@ import {
 export type SavedWorkout = {
     id: number;
     date: string;
+    name: string;
     durationSeconds: number;
     weightUnit: WeightUnit;
     exercises: WorkoutExercise[];
@@ -48,6 +50,8 @@ export type ExerciseProgressPoint = {
 };
 
 export type WorkoutRecap = {
+    workoutId: number;
+    name: string;
     durationSeconds: number;
     volume: number;
     setCount: number;
@@ -83,13 +87,20 @@ type HistoryContextType = {
         displayUnit: WeightUnit
     ) => ExerciseProgressPoint[];
 
-    getWeekStats: (displayUnit: WeightUnit) => WeekStats;
+    getWeekStats: (
+        displayUnit: WeightUnit,
+        bodyWeight?: number | null
+    ) => WeekStats;
 
     saveWorkout: (
         exercises: WorkoutExercise[],
         durationSeconds: number,
-        weightUnit: WeightUnit
+        weightUnit: WeightUnit,
+        name?: string,
+        bodyWeight?: number | null
     ) => WorkoutRecap;
+
+    updateWorkout: (workout: SavedWorkout) => void;
 
     deleteWorkout: (workoutId: number) => void;
 
@@ -109,6 +120,7 @@ function normalizeWorkout(
     return {
         id: workout.id ?? Date.now(),
         date: workout.date ?? new Date().toISOString(),
+        name: workout.name?.trim() || 'Workout',
         durationSeconds: workout.durationSeconds ?? 0,
         weightUnit: workout.weightUnit ?? 'lb',
         exercises: (workout.exercises ?? []).map((exercise) => ({
@@ -118,6 +130,7 @@ function normalizeWorkout(
             sets: exercise.sets.map((set) => ({
                 ...set,
                 duration: set.duration ?? '',
+                rir: set.rir ?? '',
                 isWarmup: set.isWarmup ?? false,
             })),
         })),
@@ -363,7 +376,10 @@ export function HistoryProvider({
         return streak;
     }
 
-    function getWeekStats(displayUnit: WeightUnit): WeekStats {
+    function getWeekStats(
+        displayUnit: WeightUnit,
+        bodyWeight?: number | null
+    ): WeekStats {
         const weekStart = startOfWeek();
 
         const weekly = workouts.filter(
@@ -375,7 +391,8 @@ export function HistoryProvider({
                 total +
                 workoutVolumeLb(
                     workout.exercises,
-                    workout.weightUnit ?? 'lb'
+                    workout.weightUnit ?? 'lb',
+                    bodyWeight
                 ),
             0
         );
@@ -398,7 +415,8 @@ export function HistoryProvider({
     function buildRecap(
         exercises: WorkoutExercise[],
         durationSeconds: number,
-        weightUnit: WeightUnit
+        weightUnit: WeightUnit,
+        bodyWeight?: number | null
     ): WorkoutRecap {
         const prs: WorkoutRecap['prs'] = [];
         let insight: string | null = null;
@@ -462,9 +480,11 @@ export function HistoryProvider({
         }
 
         return {
+            workoutId: 0,
+            name: 'Workout',
             durationSeconds,
             volume: fromPounds(
-                workoutVolumeLb(exercises, weightUnit),
+                workoutVolumeLb(exercises, weightUnit, bodyWeight),
                 weightUnit
             ),
             setCount: workingSetCount(exercises),
@@ -478,20 +498,28 @@ export function HistoryProvider({
     function saveWorkout(
         exercises: WorkoutExercise[],
         durationSeconds: number,
-        weightUnit: WeightUnit
+        weightUnit: WeightUnit,
+        name?: string,
+        bodyWeight?: number | null
     ) {
-        const recap = buildRecap(
-            exercises,
-            durationSeconds,
-            weightUnit
-        );
-
         const workout: SavedWorkout = {
             id: Date.now(),
             date: new Date().toISOString(),
+            name: name?.trim() || 'Workout',
             durationSeconds,
             weightUnit,
             exercises,
+        };
+
+        const recap = {
+            ...buildRecap(
+                exercises,
+                durationSeconds,
+                weightUnit,
+                bodyWeight
+            ),
+            workoutId: workout.id,
+            name: workout.name,
         };
 
         setWorkouts((currentWorkouts) => {
@@ -501,7 +529,20 @@ export function HistoryProvider({
         });
 
         persistRecap(recap);
+        void syncFinishedWorkout(workout);
         return recap;
+    }
+
+    function updateWorkout(workout: SavedWorkout) {
+        const next = normalizeWorkout(workout);
+
+        setWorkouts((currentWorkouts) => {
+            const updatedWorkouts = currentWorkouts.map((item) =>
+                item.id === next.id ? next : item
+            );
+            saveToStorage(updatedWorkouts);
+            return updatedWorkouts;
+        });
     }
 
     function deleteWorkout(workoutId: number) {
@@ -540,6 +581,7 @@ export function HistoryProvider({
                 getExerciseProgress,
                 getWeekStats,
                 saveWorkout,
+                updateWorkout,
                 deleteWorkout,
                 clearHistory,
                 replaceWorkouts,

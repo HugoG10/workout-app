@@ -13,6 +13,10 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/context/auth-context';
+import {
+    LockAfterSeconds,
+    useSettings,
+} from '@/context/settings-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 export default function SecurityScreen() {
@@ -24,6 +28,10 @@ export default function SecurityScreen() {
         setFaceIdEnabled,
         changePassword,
     } = useAuth();
+    const {
+        lockAfterSeconds,
+        setLockAfterSeconds,
+    } = useSettings();
 
     const [currentPassword, setCurrentPassword] =
         useState('');
@@ -140,6 +148,83 @@ export default function SecurityScreen() {
                                 true: colors.success,
                             }}
                         />
+                    </View>
+                </View>
+
+                <Text
+                    style={[
+                        styles.section,
+                        { color: colors.textMuted },
+                    ]}
+                >
+                    AUTO-LOCK
+                </Text>
+
+                <View
+                    style={[
+                        styles.card,
+                        { backgroundColor: colors.card },
+                    ]}
+                >
+                    <Text
+                        style={[
+                            styles.title,
+                            { color: colors.text },
+                        ]}
+                    >
+                        Lock after leaving the app
+                    </Text>
+                    <Text
+                        style={[
+                            styles.description,
+                            { color: colors.textSecondary },
+                        ]}
+                    >
+                        Requires Face ID or your password to open Workout again.
+                    </Text>
+
+                    <View style={styles.lockGrid}>
+                        {(
+                            [
+                                [0, 'Immediately'],
+                                [60, '1 minute'],
+                                [300, '5 minutes'],
+                                [-1, 'Never'],
+                            ] as [LockAfterSeconds, string][]
+                        ).map(([value, label]) => {
+                            const selected =
+                                lockAfterSeconds === value;
+
+                            return (
+                                <Pressable
+                                    key={label}
+                                    onPress={() =>
+                                        setLockAfterSeconds(value)
+                                    }
+                                    style={[
+                                        styles.lockOption,
+                                        {
+                                            backgroundColor: selected
+                                                ? colors.tint
+                                                : colors.fill,
+                                        },
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.lockOptionText,
+                                            {
+                                                color: selected
+                                                    ? colors.onTint
+                                                    : colors.textSecondary,
+                                            },
+                                        ]}
+                                    >
+                                        {label}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
                     </View>
                 </View>
 
@@ -281,5 +366,23 @@ const styles = StyleSheet.create({
 
     pressed: {
         opacity: 0.75,
+    },
+
+    lockGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 4,
+    },
+
+    lockOption: {
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+        borderRadius: 10,
+    },
+
+    lockOptionText: {
+        fontSize: 13,
+        fontWeight: '700',
     },
 });

@@ -7,9 +7,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "workoutapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.hugog.workoutapp",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Allow Workout to use Face ID to sign in.",
         "LSApplicationQueriesSchemes": [
@@ -17,7 +17,9 @@
           "music"
         ],
         "NSPhotoLibraryUsageDescription": "Allow Workout to use a photo for your profile.",
-        "NSCameraUsageDescription": "Allow Workout to take a photo for your profile."
+        "NSCameraUsageDescription": "Allow Workout to take a photo for your profile.",
+        "NSHealthShareUsageDescription": "Workout can show your sessions in Apple Health and on Apple Watch.",
+        "NSHealthUpdateUsageDescription": "Workout saves finished lifting sessions to Apple Health so they appear on Apple Watch."
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -30,7 +32,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -70,6 +71,26 @@
           "photosPermission": "Allow Workout to use a photo for your profile.",
           "cameraPermission": "Allow Workout to take a photo for your profile.",
           "microphonePermission": false
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#007AFF",
+          "defaultChannel": "rest-timer"
+        }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Workout can show your sessions in Apple Health and on Apple Watch.",
+          "NSHealthUpdateUsageDescription": "Workout saves finished lifting sessions to Apple Health so they appear on Apple Watch.",
+          "background": false
         }
       ]
     ],

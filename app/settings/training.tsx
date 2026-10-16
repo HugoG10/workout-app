@@ -1,7 +1,9 @@
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { useSettings } from '@/context/settings-context';
 import { useAppTheme } from '@/hooks/use-app-theme';
+import { fromPounds, toPounds } from '@/lib/workout-stats';
 
 export default function TrainingSettingsScreen() {
     const { colors } = useAppTheme();
@@ -10,7 +12,39 @@ export default function TrainingSettingsScreen() {
         setWeightUnit,
         defaultRestTime,
         setDefaultRestTime,
+        restAlertsEnabled,
+        setRestAlertsEnabled,
+        bodyWeightLb,
+        setBodyWeightLb,
+        loading,
     } = useSettings();
+    const [bodyWeightText, setBodyWeightText] = useState('');
+    const loadedWeight = useRef(false);
+    const shownUnit = useRef(weightUnit);
+
+    useEffect(() => {
+        if (loading) {
+            return;
+        }
+
+        const unitChanged = shownUnit.current !== weightUnit;
+
+        if (loadedWeight.current && !unitChanged) {
+            return;
+        }
+
+        loadedWeight.current = true;
+        shownUnit.current = weightUnit;
+        setBodyWeightText(
+            bodyWeightLb
+                ? String(
+                      Math.round(
+                          fromPounds(bodyWeightLb, weightUnit) * 10
+                      ) / 10
+                  )
+                : ''
+        );
+    }, [loading, weightUnit, bodyWeightLb]);
 
     return (
         <ScrollView
@@ -84,6 +118,74 @@ export default function TrainingSettingsScreen() {
                             </Pressable>
                         );
                     })}
+                </View>
+            </View>
+
+            <Text
+                style={[
+                    styles.section,
+                    { color: colors.textMuted },
+                ]}
+            >
+                BODY WEIGHT
+            </Text>
+
+            <View
+                style={[
+                    styles.card,
+                    { backgroundColor: colors.card },
+                ]}
+            >
+                <Text style={[styles.title, { color: colors.text }]}>
+                    Body weight
+                </Text>
+                <Text
+                    style={[
+                        styles.description,
+                        { color: colors.textSecondary },
+                    ]}
+                >
+                    Used for bodyweight exercise volume and the Apple Health calorie estimate.
+                </Text>
+                <View
+                    style={[
+                        styles.customRow,
+                        { backgroundColor: colors.fill },
+                    ]}
+                >
+                    <TextInput
+                        keyboardType="decimal-pad"
+                        value={bodyWeightText}
+                        placeholder="0"
+                        placeholderTextColor={colors.textFaint}
+                        onChangeText={(value) => {
+                            setBodyWeightText(value);
+                            const parsed = Number(value);
+
+                            if (value.trim() === '') {
+                                setBodyWeightLb(null);
+                                return;
+                            }
+
+                            if (!Number.isNaN(parsed) && parsed > 0) {
+                                setBodyWeightLb(
+                                    toPounds(parsed, weightUnit)
+                                );
+                            }
+                        }}
+                        style={[
+                            styles.customInput,
+                            { color: colors.text },
+                        ]}
+                    />
+                    <Text
+                        style={[
+                            styles.customSuffix,
+                            { color: colors.textMuted },
+                        ]}
+                    >
+                        {weightUnit}
+                    </Text>
                 </View>
             </View>
 
@@ -193,6 +295,32 @@ export default function TrainingSettingsScreen() {
                     >
                         seconds
                     </Text>
+                    </View>
+
+                <View style={styles.alertRow}>
+                    <View style={styles.alertInfo}>
+                        <Text
+                            style={[styles.title, { color: colors.text }]}
+                        >
+                            Rest notifications
+                        </Text>
+                        <Text
+                            style={[
+                                styles.description,
+                                { color: colors.textSecondary, marginBottom: 0 },
+                            ]}
+                        >
+                            Alert you when rest ends if you leave the app.
+                        </Text>
+                    </View>
+                    <Switch
+                        value={restAlertsEnabled}
+                        onValueChange={setRestAlertsEnabled}
+                        trackColor={{
+                            false: colors.switchOff,
+                            true: colors.success,
+                        }}
+                    />
                 </View>
             </View>
         </ScrollView>
@@ -288,5 +416,16 @@ const styles = StyleSheet.create({
     customSuffix: {
         fontSize: 14,
         fontWeight: '600',
+    },
+
+    alertRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginTop: 22,
+    },
+
+    alertInfo: {
+        flex: 1,
     },
 });

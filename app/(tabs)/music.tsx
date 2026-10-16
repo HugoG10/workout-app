@@ -10,10 +10,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useSettings } from '@/context/settings-context';
-import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppColors } from '@/constants/theme';
 import { ScreenTip } from '@/components/screen-tip';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { ScreenBackBar } from '@/components/screen-back-bar';
 import {
     WORKOUT_MIXES,
     musicServiceLabel,
@@ -24,7 +25,6 @@ import {
 export default function MusicScreen() {
     const styles = useThemedStyles(createStyles);
 
-    const insets = useScreenInsets();
     const {
         musicService,
         setMusicService,
@@ -36,22 +36,19 @@ export default function MusicScreen() {
     const serviceName = musicServiceLabel(musicService);
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={[
-                styles.content,
-                { paddingTop: insets.top + 4 },
-            ]}
+        <View style={styles.container}>
+            <ScreenBackBar label="Back" fallback="/settings" />
+            <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
         >
-            <Text style={styles.title}>Music</Text>
-
-            <Text style={styles.subtitle}>
-                Pick Spotify or Apple Music, save a gym
-                playlist, and open it in one tap.
-            </Text>
+            <ScreenHeader
+                title="Music"
+                subtitle="Pick a service, save a playlist, and open it during a session."
+            />
 
             <ScreenTip
                 id="music"
@@ -235,6 +232,7 @@ export default function MusicScreen() {
                 </Pressable>
             ))}
         </ScrollView>
+        </View>
     );
 }
 
@@ -245,24 +243,13 @@ function createStyles(c: AppColors) {
         backgroundColor: c.background,
     },
 
+    scroll: {
+        flex: 1,
+    },
+
     content: {
         padding: 20,
         paddingBottom: 60,
-    },
-
-    title: {
-        color: c.text,
-        fontSize: 36,
-        fontWeight: '700',
-        letterSpacing: -0.5,
-    },
-
-    subtitle: {
-        color: c.textSecondary,
-        fontSize: 16,
-        lineHeight: 22,
-        marginTop: 4,
-        marginBottom: 24,
     },
 
     hero: {

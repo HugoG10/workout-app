@@ -5,6 +5,7 @@ export type LoggedSet = {
     weight?: string;
     reps?: string;
     duration?: string;
+    rir?: string;
     isWarmup?: boolean;
     completed?: boolean;
 };
@@ -42,6 +43,74 @@ export function firstWorkingSet<T extends LoggedSet>(
     sets: T[]
 ) {
     return sets.find((set) => isWorkingSet(set)) ?? sets[0];
+}
+
+export function bumpNumber(value: string, delta: number) {
+    const current = Number(value) || 0;
+    const next = Math.max(0, current + delta);
+    const rounded = Math.round(next * 10) / 10;
+
+    if (Number.isInteger(rounded)) {
+        return String(rounded);
+    }
+
+    return rounded.toFixed(1);
+}
+
+export function nextWeightHint(
+    exercise: LoggedExercise,
+    unit: WeightUnit
+) {
+    const last = [...exercise.sets]
+        .reverse()
+        .find(
+            (set) =>
+                isWorkingSet(set) &&
+                Number(set.weight) > 0 &&
+                Number(set.reps) > 0
+        );
+
+    if (!last || exercise.tracking === 'duration') {
+        return null;
+    }
+
+    const weight = Number(last.weight);
+    const reps = Number(last.reps);
+    const rir = Number(last.rir);
+    const hasRir = (last.rir ?? '').trim() !== '' && !Number.isNaN(rir);
+    const rirLabel = last.rir === '4' ? '4+' : last.rir;
+
+    if (hasRir && rir < 3) {
+        return `${exercise.name} · last ${weight} × ${reps}, RIR ${rirLabel} → stay at ${weight}`;
+    }
+
+    if (reps < 5) {
+        return null;
+    }
+
+    const step = unit === 'kg' ? 2.5 : 5;
+    const heavier = bumpNumber(String(weight), step);
+
+    return `${exercise.name} · last ${weight} × ${reps}${
+        hasRir ? `, RIR ${rirLabel}` : ''
+    } → try ${heavier}`;
+}
+
+export function nextWeightHints(
+    workouts: { exercises: LoggedExercise[] }[],
+    unit: WeightUnit,
+    limit = 2
+) {
+    const latest = workouts[0];
+
+    if (!latest) {
+        return [];
+    }
+
+    return latest.exercises
+        .map((exercise) => nextWeightHint(exercise, unit))
+        .filter((hint): hint is string => Boolean(hint))
+        .slice(0, limit);
 }
 
 export function prefillFromPrevious(sets?: LoggedSet[]) {
@@ -142,13 +211,15 @@ export function formatSetLabel(
 
 export function setVolume(
     set: LoggedSet,
-    unit: WeightUnit
+    unit: WeightUnit,
+    fallbackWeight = 0
 ) {
     if (set.isWarmup) {
         return 0;
     }
 
-    const weight = Number(set.weight) || 0;
+    const entered = Number(set.weight) || 0;
+    const weight = entered > 0 ? entered : fallbackWeight;
     const reps = Number(set.reps) || 0;
 
     return toPounds(weight, unit) * reps;
@@ -156,17 +227,27 @@ export function setVolume(
 
 export function workoutVolumeLb(
     exercises: LoggedExercise[],
-    unit: WeightUnit
+    unit: WeightUnit,
+    bodyWeightLb?: number | null
 ) {
-    return exercises.reduce(
-        (total, exercise) =>
+    const fallback =
+        bodyWeightLb && bodyWeightLb > 0
+            ? fromPounds(bodyWeightLb, unit)
+            : 0;
+
+    return exercises.reduce((total, exercise) => {
+        const bodyweightFallback =
+            exercise.tracking === 'bodyweight' ? fallback : 0;
+
+        return (
             total +
             exercise.sets.reduce(
-                (sum, set) => sum + setVolume(set, unit),
+                (sum, set) =>
+                    sum + setVolume(set, unit, bodyweightFallback),
                 0
-            ),
-        0
-    );
+            )
+        );
+    }, 0);
 }
 
 export function workingSetCount(exercises: LoggedExercise[]) {

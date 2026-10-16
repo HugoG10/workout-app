@@ -1,10 +1,9 @@
 import {
   DarkTheme,
   DefaultTheme,
+  Stack,
   ThemeProvider,
-} from '@react-navigation/native';
-
-import { Stack } from 'expo-router';
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -17,6 +16,7 @@ import { RoutineProvider } from '@/context/routine-context';
 import { SettingsProvider } from '@/context/settings-context';
 import { WorkoutProvider } from '@/context/workout-context';
 import { ExerciseCatalogProvider } from '@/context/exercise-catalog-context';
+import { AutoLock, RestNotifier } from '@/components/session-guards';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -49,6 +49,8 @@ function RootNavigator() {
           <RoutineProvider>
             <ExerciseCatalogProvider>
             <WorkoutProvider>
+              <AutoLock />
+              <RestNotifier />
               <ThemedNavigation>
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Protected guard={!hasAccount}>
@@ -77,8 +79,8 @@ function RootNavigator() {
                     <Stack.Screen
                       name="workout-recap"
                       options={{
-                        gestureEnabled: false,
-                        animation: 'fade',
+                        presentation: 'modal',
+                        animation: 'slide_from_bottom',
                       }}
                     />
 

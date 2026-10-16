@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import {
     Pressable,
     ScrollView,
@@ -6,6 +7,7 @@ import {
     View,
 } from 'react-native';
 
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 
 import { useHistory } from '@/context/history-context';
@@ -14,7 +16,13 @@ import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppColors } from '@/constants/theme';
 import { ScreenTip } from '@/components/screen-tip';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SearchField } from '@/components/ui/search-field';
+import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/hooks/use-app-theme';
+import { monthCells, trainedDayKeys } from '@/lib/recovery';
 import {
+    dayKey,
     formatDurationLong,
     fromPounds,
     workingSetCount,
@@ -23,11 +31,57 @@ import {
 
 export default function HistoryScreen() {
     const styles = useThemedStyles(createStyles);
+    const { colors } = useAppTheme();
 
     const insets = useScreenInsets();
     const { workouts, getWeekStats } = useHistory();
-    const { weightUnit } = useSettings();
-    const week = getWeekStats(weightUnit);
+    const { weightUnit, bodyWeightLb } = useSettings();
+    const week = getWeekStats(weightUnit, bodyWeightLb);
+    const [query, setQuery] = useState('');
+    const [monthAnchor, setMonthAnchor] = useState(
+        () => new Date()
+    );
+    const [selectedKey, setSelectedKey] = useState<string | null>(
+        null
+    );
+    const calendar = monthCells(monthAnchor);
+    const trained = trainedDayKeys(workouts);
+    const today = dayKey(new Date());
+
+    const visibleWorkouts = useMemo(() => {
+        const needle = query.trim().toLowerCase();
+        const matched = needle
+            ? workouts.filter((workout) => {
+                  if (workout.name.toLowerCase().includes(needle)) {
+                      return true;
+                  }
+
+                  return workout.exercises.some((exercise) =>
+                      exercise.name.toLowerCase().includes(needle)
+                  );
+              })
+            : workouts;
+
+        if (!selectedKey) {
+            return matched;
+        }
+
+        return matched.filter(
+            (workout) => dayKey(workout.date) === selectedKey
+        );
+    }, [query, selectedKey, workouts]);
+
+    const selectedLabel = selectedKey
+        ? new Date(
+              Number(selectedKey.slice(0, 4)),
+              Number(selectedKey.slice(5, 7)) - 1,
+              Number(selectedKey.slice(8, 10))
+          ).toLocaleDateString([], {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+          })
+        : null;
 
     function formatDuration(seconds: number) {
         return formatDurationLong(seconds);
@@ -63,7 +117,10 @@ export default function HistoryScreen() {
         exercises: typeof workouts[number]['exercises'],
         unit: 'lb' | 'kg'
     ) {
-        return fromPounds(workoutVolumeLb(exercises, unit), unit);
+        return fromPounds(
+            workoutVolumeLb(exercises, unit, bodyWeightLb),
+            unit
+        );
     }
 
     function getMonthLabel(date: string) {
@@ -73,6 +130,24 @@ export default function HistoryScreen() {
                 year: 'numeric',
             })
             .toUpperCase();
+    }
+
+    function shiftMonth(delta: number) {
+        setMonthAnchor(
+            (current) =>
+                new Date(
+                    current.getFullYear(),
+                    current.getMonth() + delta,
+                    1
+                )
+        );
+    }
+
+    function selectDay(key: string) {
+        Haptics.selectionAsync();
+        setSelectedKey((current) =>
+            current === key ? null : key
+        );
     }
 
     let previousMonth = '';
@@ -86,21 +161,181 @@ export default function HistoryScreen() {
             ]}
             showsVerticalScrollIndicator={false}
         >
-            {/* HEADER */}
-
-            <Text style={styles.title}>
-                History
-            </Text>
-
-            <Text style={styles.subtitle}>
-                Track your training over time.
-            </Text>
+            <ScreenHeader
+                title="History"
+                subtitle="Your finished sessions."
+            />
 
             <ScreenTip
                 id="history"
                 title="Your sessions"
                 body="Finished workouts land here. Tap one to see every set you logged."
             />
+
+            {workouts.length > 0 && (
+                <SearchField
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Search workouts or exercises"
+                />
+            )}
+
+            <View style={styles.calendarCard}>
+                <View style={styles.calendarHeader}>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Previous month"
+                        hitSlop={10}
+                        onPress={() => shiftMonth(-1)}
+                        style={styles.monthButton}
+                    >
+                        <Ionicons
+                            name="chevron-back"
+                            size={18}
+                            color={colors.text}
+                        />
+                    </Pressable>
+                    <Text style={styles.calendarLabel}>
+                        {calendar.label}
+                    </Text>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Next month"
+                        hitSlop={10}
+                        onPress={() => shiftMonth(1)}
+                        style={styles.monthButton}
+                    >
+                        <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color={colors.text}
+                        />
+                    </Pressable>
+                </View>
+                <View style={styles.weekdayRow}>
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(
+                        (day, index) => (
+                            <Text
+                                key={`${day}-${index}`}
+                                style={styles.weekday}
+                            >
+                                {day}
+                            </Text>
+                        )
+                    )}
+                </View>
+                <View style={styles.calendarGrid}>
+                    {calendar.cells.map((day, index) => {
+                        if (!day) {
+                            return (
+                                <View
+                                    key={`empty-${index}`}
+                                    style={styles.calendarCell}
+                                />
+                            );
+                        }
+
+                        const key = dayKey(
+                            new Date(
+                                calendar.year,
+                                calendar.month,
+                                day
+                            )
+                        );
+                        const hasWorkout = trained.has(key);
+                        const selected = selectedKey === key;
+                        const isToday = key === today;
+
+                        return (
+                            <Pressable
+                                key={key}
+                                accessibilityRole="button"
+                                accessibilityLabel={
+                                    hasWorkout
+                                        ? `${day}, workout logged`
+                                        : `${day}, no workout`
+                                }
+                                onPress={() => selectDay(key)}
+                                style={styles.calendarCell}
+                            >
+                                <View
+                                    style={[
+                                        styles.dayCircle,
+                                        isToday &&
+                                            !selected &&
+                                            styles.dayToday,
+                                        selected && styles.daySelected,
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.calendarDay,
+                                            hasWorkout &&
+                                                !selected &&
+                                                styles.calendarDayOn,
+                                            selected &&
+                                                styles.calendarDaySelected,
+                                        ]}
+                                    >
+                                        {day}
+                                    </Text>
+                                </View>
+                                <View
+                                    style={[
+                                        styles.dayDot,
+                                        hasWorkout && styles.dayDotOn,
+                                    ]}
+                                />
+                            </Pressable>
+                        );
+                    })}
+                </View>
+            </View>
+
+            {selectedLabel ? (
+                <View style={styles.daySummary}>
+                    <View style={styles.daySummaryCopy}>
+                        <Text style={styles.daySummaryTitle}>
+                            {selectedLabel}
+                        </Text>
+                        <Text style={styles.daySummaryMeta}>
+                            {visibleWorkouts.length === 0
+                                ? 'No session saved'
+                                : `${visibleWorkouts.length} ${
+                                      visibleWorkouts.length === 1
+                                          ? 'session'
+                                          : 'sessions'
+                                  }`}
+                        </Text>
+                    </View>
+                    <Pressable
+                        hitSlop={8}
+                        onPress={() => setSelectedKey(null)}
+                    >
+                        <Text style={styles.clearDay}>Show all</Text>
+                    </Pressable>
+                </View>
+            ) : null}
+
+            {selectedKey && visibleWorkouts.length === 0 ? (
+                <View style={styles.dayEmpty}>
+                    <View style={styles.dayEmptyIcon}>
+                        <Ionicons
+                            name="calendar-outline"
+                            size={22}
+                            color={colors.textSecondary}
+                        />
+                    </View>
+                    <Text style={styles.dayEmptyTitle}>
+                        No workout logged
+                    </Text>
+                    <Text style={styles.dayEmptyText}>
+                        {query.trim()
+                            ? 'No saved session matches this search.'
+                            : 'Nothing was saved for this day.'}
+                    </Text>
+                </View>
+            ) : null}
 
             {workouts.length > 0 && (
                 <View style={styles.weekRow}>
@@ -129,7 +364,7 @@ export default function HistoryScreen() {
 
             {/* EMPTY STATE */}
 
-            {workouts.length === 0 && (
+            {workouts.length === 0 && !selectedKey && (
                 <View style={styles.emptyCard}>
                     <View style={styles.emptyIcon}>
                         <Text style={styles.emptyIconText}>
@@ -161,7 +396,7 @@ export default function HistoryScreen() {
 
             {/* WORKOUTS */}
 
-            {workouts.map((workout) => {
+            {visibleWorkouts.map((workout) => {
                 const unit =
                     workout.weightUnit ?? 'lb';
 
@@ -234,6 +469,14 @@ export default function HistoryScreen() {
                                             styles.workoutDate
                                         }
                                     >
+                                        {workout.name}
+                                    </Text>
+
+                                    <Text
+                                        style={
+                                            styles.workoutMeta
+                                        }
+                                    >
                                         {formatDate(
                                             workout.date
                                         )}
@@ -263,11 +506,11 @@ export default function HistoryScreen() {
                                     </Text>
                                 </View>
 
-                                <Text
-                                    style={styles.arrow}
-                                >
-                                    ›
-                                </Text>
+                                <Ionicons
+                                    name="chevron-forward"
+                                    size={18}
+                                    color={colors.textFaint}
+                                />
                             </View>
 
                             {/* STATS */}
@@ -443,6 +686,184 @@ function createStyles(c: AppColors) {
         fontSize: 16,
         marginTop: 4,
         marginBottom: 10,
+    },
+
+    search: {
+        backgroundColor: c.card,
+        color: c.text,
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        fontSize: 16,
+        marginBottom: 14,
+    },
+
+    calendarCard: {
+        backgroundColor: c.card,
+        borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.line,
+        paddingHorizontal: 12,
+        paddingTop: 8,
+        paddingBottom: 14,
+        marginBottom: 16,
+    },
+
+    calendarHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+
+    monthButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    calendarLabel: {
+        color: c.text,
+        fontSize: 17,
+        fontWeight: '700',
+        letterSpacing: -0.2,
+    },
+
+    weekdayRow: {
+        flexDirection: 'row',
+        marginBottom: 4,
+    },
+
+    weekday: {
+        flex: 1,
+        textAlign: 'center',
+        color: c.textFaint,
+        fontSize: 12,
+        fontWeight: '600',
+    },
+
+    calendarGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+
+    calendarCell: {
+        width: '14.28%',
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+
+    dayCircle: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    dayToday: {
+        borderWidth: 1,
+        borderColor: c.tint,
+    },
+
+    daySelected: {
+        backgroundColor: c.text,
+    },
+
+    calendarDay: {
+        color: c.text,
+        fontSize: 15,
+        fontWeight: '500',
+        fontVariant: ['tabular-nums'],
+    },
+
+    calendarDayOn: {
+        fontWeight: '700',
+    },
+
+    calendarDaySelected: {
+        color: c.background,
+        fontWeight: '700',
+    },
+
+    dayDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        marginTop: 3,
+        backgroundColor: 'transparent',
+    },
+
+    dayDotOn: {
+        backgroundColor: c.tint,
+    },
+
+    daySummary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        paddingHorizontal: 4,
+        gap: 12,
+    },
+
+    daySummaryCopy: {
+        flex: 1,
+    },
+
+    daySummaryTitle: {
+        color: c.text,
+        fontSize: 17,
+        fontWeight: '700',
+    },
+
+    daySummaryMeta: {
+        color: c.textSecondary,
+        fontSize: 13,
+        marginTop: 2,
+    },
+
+    clearDay: {
+        color: c.tint,
+        fontSize: 15,
+        fontWeight: '600',
+    },
+
+    dayEmpty: {
+        backgroundColor: c.card,
+        borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.line,
+        paddingVertical: 28,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        marginBottom: 18,
+    },
+
+    dayEmptyIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: c.fill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+
+    dayEmptyTitle: {
+        color: c.text,
+        fontSize: 17,
+        fontWeight: '700',
+    },
+
+    dayEmptyText: {
+        color: c.textSecondary,
+        fontSize: 14,
+        lineHeight: 20,
+        textAlign: 'center',
+        marginTop: 4,
     },
 
     weekRow: {

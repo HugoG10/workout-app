@@ -9,7 +9,11 @@ import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useProfilePhotoPicker } from '@/hooks/use-profile-photo-picker';
 import { ScreenTip } from '@/components/screen-tip';
+import { ScreenHeader } from '@/components/ui/screen-header';
+import { SettingsGroup, SettingsRow } from '@/components/settings-list';
 import { ProfileAvatar } from '@/components/profile-avatar';
+import { musicServiceLabel } from '@/lib/music';
+import { useSettings } from '@/context/settings-context';
 
 function initialsFor(
     firstName: string,
@@ -34,6 +38,7 @@ export default function ProfileScreen() {
     const { colors } = useAppTheme();
     const { user } = useAuth();
     const { workouts } = useHistory();
+    const { musicService } = useSettings();
     const { showPhotoOptions } = useProfilePhotoPicker();
 
     const name = user?.name || 'Athlete';
@@ -70,29 +75,29 @@ export default function ProfileScreen() {
             ]}
             showsVerticalScrollIndicator={false}
         >
-            <View style={styles.header}>
-                <Text style={[styles.title, { color: colors.text }]}>
-                    Profile
-                </Text>
-
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Settings"
-                    hitSlop={10}
-                    onPress={() => router.push('/settings')}
-                    style={({ pressed }) => [
-                        styles.gear,
-                        { backgroundColor: colors.fill },
-                        pressed && styles.pressed,
-                    ]}
-                >
-                    <Ionicons
-                        name="settings-outline"
-                        size={22}
-                        color={colors.text}
-                    />
-                </Pressable>
-            </View>
+            <ScreenHeader
+                title="You"
+                subtitle="Account, stats, and settings."
+                right={
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Settings"
+                        hitSlop={10}
+                        onPress={() => router.push('/settings')}
+                        style={({ pressed }) => [
+                            styles.gear,
+                            { backgroundColor: colors.fill },
+                            pressed && styles.pressed,
+                        ]}
+                    >
+                        <Ionicons
+                            name="settings-outline"
+                            size={20}
+                            color={colors.text}
+                        />
+                    </Pressable>
+                }
+            />
 
             <ScreenTip
                 id="profile"
@@ -188,20 +193,31 @@ export default function ProfileScreen() {
                 </View>
             </View>
 
-            <Pressable
-                onPress={() => router.push('/settings/account')}
-                style={({ pressed }) => [
-                    styles.editButton,
-                    { backgroundColor: colors.fill },
-                    pressed && styles.pressed,
-                ]}
-            >
-                <Text
-                    style={[styles.editText, { color: colors.text }]}
-                >
-                    Edit Profile
-                </Text>
-            </Pressable>
+            <SettingsGroup colors={colors}>
+                <SettingsRow
+                    colors={colors}
+                    icon="person"
+                    iconColor="#636366"
+                    label="Edit Profile"
+                    onPress={() => router.push('/settings/account')}
+                />
+                <SettingsRow
+                    colors={colors}
+                    icon="settings"
+                    iconColor="#8E8E93"
+                    label="Settings"
+                    onPress={() => router.push('/settings')}
+                />
+                <SettingsRow
+                    colors={colors}
+                    icon="musical-notes"
+                    iconColor="#FF2D55"
+                    label="Music"
+                    value={musicServiceLabel(musicService)}
+                    last
+                    onPress={() => router.push('/(tabs)/music')}
+                />
+            </SettingsGroup>
         </ScrollView>
     );
 }
@@ -216,19 +232,6 @@ const styles = StyleSheet.create({
         paddingBottom: 60,
     },
 
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 28,
-    },
-
-    title: {
-        fontSize: 36,
-        fontWeight: '700',
-        letterSpacing: -0.5,
-    },
-
     gear: {
         width: 40,
         height: 40,
@@ -239,6 +242,7 @@ const styles = StyleSheet.create({
 
     identity: {
         alignItems: 'center',
+        marginTop: 12,
         marginBottom: 28,
         gap: 14,
     },

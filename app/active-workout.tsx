@@ -20,6 +20,7 @@ import { useWorkout } from '@/context/workout-context';
 import { useScreenInsets } from '@/hooks/use-screen-insets';
 import { MusicBar } from '@/components/music-bar';
 import { ScreenTip } from '@/components/screen-tip';
+import { SetKeypad } from '@/components/set-keypad';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { AppColors } from '@/constants/theme';
@@ -28,6 +29,14 @@ import {
     formatSetLabel,
     setHasData,
 } from '@/lib/workout-stats';
+
+const REST_PRESETS = [60, 90, 120, 180];
+
+type KeypadTarget = {
+    exerciseId: string;
+    setId: number;
+    field: 'weight' | 'reps' | 'duration';
+};
 
 export default function ActiveWorkoutScreen() {
     const styles = useThemedStyles(createStyles);
@@ -38,6 +47,7 @@ export default function ActiveWorkoutScreen() {
     const {
         workoutExercises,
         workoutStartedAt,
+        workoutName,
         restEndsAt,
         addSet,
         deleteSet,
@@ -46,10 +56,13 @@ export default function ActiveWorkoutScreen() {
         updateWeight,
         updateReps,
         updateDuration,
+        updateRir,
         updateNotes,
+        updateRestSeconds,
         toggleCompleted,
         removeExercise,
         moveExercise,
+        setWorkoutName,
         clearWorkout,
         ensureWorkoutStarted,
         setRestEndsAt,
@@ -63,11 +76,13 @@ export default function ActiveWorkoutScreen() {
     const {
         defaultRestTime,
         weightUnit,
+        bodyWeightLb,
         musicBarCollapsed,
         setMusicBarCollapsed,
     } = useSettings();
 
     const [now, setNow] = useState(Date.now());
+    const [keypad, setKeypad] = useState<KeypadTarget | null>(null);
 
     useEffect(() => {
         ensureWorkoutStarted();
@@ -113,11 +128,16 @@ export default function ActiveWorkoutScreen() {
             .find((exercise) => exercise.id === exerciseId)
             ?.sets.find((set) => set.id === setId);
 
+        const exercise = workoutExercises.find(
+            (item) => item.id === exerciseId
+        );
         const completed = toggleCompleted(exerciseId, setId);
 
         if (completed && currentSet && !currentSet.isWarmup) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setRestEndsAt(Date.now() + defaultRestTime * 1000);
+            const rest =
+                exercise?.restSeconds ?? defaultRestTime;
+            setRestEndsAt(Date.now() + rest * 1000);
         } else {
             Haptics.selectionAsync();
         }
@@ -128,17 +148,71 @@ export default function ActiveWorkoutScreen() {
         setId: number,
         weight: string,
         reps: string,
-        duration: string
+        duration: string,
+        rir = ''
     ) {
         updateWeight(exerciseId, setId, weight);
         updateReps(exerciseId, setId, reps);
         updateDuration(exerciseId, setId, duration);
+        updateRir(exerciseId, setId, rir);
+        Haptics.selectionAsync();
+    }
+
+    function copyLastSet(exerciseId: string, setId: number) {
+        const exercise = workoutExercises.find(
+            (item) => item.id === exerciseId
+        );
+
+        if (!exercise) {
+            return;
+        }
+
+        const index = exercise.sets.findIndex(
+            (set) => set.id === setId
+        );
+        const previousInWorkout =
+            index > 0 ? exercise.sets[index - 1] : undefined;
+        const previousSession = (
+            getPreviousExercise(exerciseId)?.sets ?? []
+        )
+            .filter((set) => !set.isWarmup)
+            .at(-1);
+        const source = previousInWorkout ?? previousSession;
+
+        if (!source) {
+            return;
+        }
+
+        fillFromPrevious(
+            exerciseId,
+            setId,
+            source.weight ?? '',
+            source.reps ?? '',
+            source.duration ?? '',
+            source.rir ?? ''
+        );
+    }
+
+    function restFor(exerciseId: string) {
+        const exercise = workoutExercises.find(
+            (item) => item.id === exerciseId
+        );
+
+        return exercise?.restSeconds ?? defaultRestTime;
+    }
+
+    function cycleRest(exerciseId: string) {
+        const current = restFor(exerciseId);
+        const index = REST_PRESETS.indexOf(current);
+        const next =
+            REST_PRESETS[(index + 1) % REST_PRESETS.length];
+        updateRestSeconds(exerciseId, next);
         Haptics.selectionAsync();
     }
 
     function addRestTime() {
         const current = restEndsAt ?? Date.now();
-        setRestEndsAt(current + 15000);
+        setRestEndsAt(current + 30000);
     }
 
     function subtractRestTime() {
@@ -207,7 +281,9 @@ export default function ActiveWorkoutScreen() {
             saveWorkout(
                 cleanedExercises,
                 workoutTime,
-                weightUnit
+                weightUnit,
+                workoutName,
+                bodyWeightLb
             );
 
             clearWorkout();
@@ -216,7 +292,8 @@ export default function ActiveWorkoutScreen() {
                 Haptics.NotificationFeedbackType.Success
             );
 
-            router.replace('/workout-recap');
+            router.dismissAll();
+            router.push('/workout-recap');
         }
 
         if (hasIncompleteSets) {
@@ -255,6 +332,7 @@ export default function ActiveWorkoutScreen() {
                 {
                     options: [
                         'Cancel',
+                        'Copy Last Set',
                         'Duplicate Set',
                         warmup
                             ? 'Mark as Working Set'
@@ -262,19 +340,23 @@ export default function ActiveWorkoutScreen() {
                         'Delete Set',
                     ],
                     cancelButtonIndex: 0,
-                    destructiveButtonIndex: 3,
+                    destructiveButtonIndex: 4,
                 },
 
                 (buttonIndex) => {
                     if (buttonIndex === 1) {
-                        duplicateSet(exerciseId, setId);
+                        copyLastSet(exerciseId, setId);
                     }
 
                     if (buttonIndex === 2) {
-                        toggleWarmup(exerciseId, setId);
+                        duplicateSet(exerciseId, setId);
                     }
 
                     if (buttonIndex === 3) {
+                        toggleWarmup(exerciseId, setId);
+                    }
+
+                    if (buttonIndex === 4) {
                         deleteSet(exerciseId, setId);
                     }
                 }
@@ -284,6 +366,10 @@ export default function ActiveWorkoutScreen() {
         }
 
         Alert.alert('Set Options', undefined, [
+            {
+                text: 'Copy Last Set',
+                onPress: () => copyLastSet(exerciseId, setId),
+            },
             {
                 text: 'Duplicate Set',
                 onPress: () => duplicateSet(exerciseId, setId),
@@ -330,6 +416,16 @@ export default function ActiveWorkoutScreen() {
                   ]
                 : []),
             {
+                text: 'Replace Exercise',
+                onPress: () =>
+                    router.push({
+                        pathname: '/exercise-picker',
+                        params: {
+                            replaceId: exerciseId,
+                        },
+                    }),
+            },
+            {
                 text: 'Remove Exercise',
                 style: 'destructive',
                 onPress: () => removeExercise(exerciseId),
@@ -357,9 +453,13 @@ export default function ActiveWorkoutScreen() {
                 </Pressable>
 
                 <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>
-                        Workout
-                    </Text>
+                    <TextInput
+                        style={styles.headerTitle}
+                        value={workoutName}
+                        onChangeText={setWorkoutName}
+                        placeholder="Workout"
+                        placeholderTextColor={colors.textFaint}
+                    />
 
                     <Text style={styles.workoutTimer}>
                         {formatClock(workoutTime)}
@@ -367,8 +467,8 @@ export default function ActiveWorkoutScreen() {
                 </View>
 
                 <Pressable
-                    hitSlop={16}
-                    style={styles.headerButton}
+                    hitSlop={8}
+                    style={styles.finishPill}
                     onPress={handleFinishWorkout}
                 >
                     <Text style={styles.finish}>
@@ -443,7 +543,7 @@ export default function ActiveWorkoutScreen() {
                                             styles.restButtonText
                                         }
                                     >
-                                        +15
+                                        +30
                                     </Text>
                                 </Pressable>
                             </View>
@@ -537,6 +637,24 @@ export default function ActiveWorkoutScreen() {
                                                 )}`}
                                         </Text>
                                     </View>
+
+                                    <Pressable
+                                        style={styles.restChip}
+                                        onPress={() =>
+                                            cycleRest(exercise.id)
+                                        }
+                                    >
+                                        <Text
+                                            style={
+                                                styles.restChipText
+                                            }
+                                        >
+                                            REST{' '}
+                                            {exercise.restSeconds ??
+                                                defaultRestTime}
+                                            s
+                                        </Text>
+                                    </Pressable>
 
                                     <Pressable
                                         style={
@@ -673,9 +791,14 @@ export default function ActiveWorkoutScreen() {
                                                         !item.isWarmup
                                                 ).length;
 
+                                        const showRir =
+                                            exercise.tracking !==
+                                                'duration' &&
+                                            !set.isWarmup;
+
                                         return (
+                                            <View key={set.id}>
                                             <View
-                                                key={set.id}
                                                 style={[
                                                     styles.setRow,
 
@@ -737,75 +860,81 @@ export default function ActiveWorkoutScreen() {
                                                 </Pressable>
 
                                                 {duration ? (
-                                                    <TextInput
+                                                    <Pressable
                                                         style={[
                                                             styles.input,
                                                             set.completed &&
                                                                 styles.completedInput,
                                                         ]}
-                                                        keyboardType="number-pad"
-                                                        placeholder="—"
-                                                        value={
-                                                            set.duration
+                                                        onPress={() =>
+                                                            setKeypad({
+                                                                exerciseId:
+                                                                    exercise.id,
+                                                                setId: set.id,
+                                                                field: 'duration',
+                                                            })
                                                         }
-                                                        selectTextOnFocus
-                                                        onChangeText={(
-                                                            value
-                                                        ) =>
-                                                            updateDuration(
-                                                                exercise.id,
-                                                                set.id,
-                                                                value
-                                                            )
-                                                        }
-                                                    />
+                                                    >
+                                                        <Text
+                                                            style={
+                                                                styles.inputText
+                                                            }
+                                                        >
+                                                            {set.duration ||
+                                                                '—'}
+                                                        </Text>
+                                                    </Pressable>
                                                 ) : (
                                                     <>
-                                                        <TextInput
+                                                        <Pressable
                                                             style={[
                                                                 styles.input,
                                                                 set.completed &&
                                                                     styles.completedInput,
                                                             ]}
-                                                            keyboardType="decimal-pad"
-                                                            placeholder="—"
-                                                            value={
-                                                                set.weight
+                                                            onPress={() =>
+                                                                setKeypad({
+                                                                    exerciseId:
+                                                                        exercise.id,
+                                                                    setId: set.id,
+                                                                    field: 'weight',
+                                                                })
                                                             }
-                                                            selectTextOnFocus
-                                                            onChangeText={(
-                                                                value
-                                                            ) =>
-                                                                updateWeight(
-                                                                    exercise.id,
-                                                                    set.id,
-                                                                    value
-                                                                )
-                                                            }
-                                                        />
+                                                        >
+                                                            <Text
+                                                                style={
+                                                                    styles.inputText
+                                                                }
+                                                            >
+                                                                {set.weight ||
+                                                                    '—'}
+                                                            </Text>
+                                                        </Pressable>
 
-                                                        <TextInput
+                                                        <Pressable
                                                             style={[
                                                                 styles.input,
                                                                 set.completed &&
                                                                     styles.completedInput,
                                                             ]}
-                                                            keyboardType="number-pad"
-                                                            placeholder="—"
-                                                            value={
-                                                                set.reps
+                                                            onPress={() =>
+                                                                setKeypad({
+                                                                    exerciseId:
+                                                                        exercise.id,
+                                                                    setId: set.id,
+                                                                    field: 'reps',
+                                                                })
                                                             }
-                                                            selectTextOnFocus
-                                                            onChangeText={(
-                                                                value
-                                                            ) =>
-                                                                updateReps(
-                                                                    exercise.id,
-                                                                    set.id,
-                                                                    value
-                                                                )
-                                                            }
-                                                        />
+                                                        >
+                                                            <Text
+                                                                style={
+                                                                    styles.inputText
+                                                                }
+                                                            >
+                                                                {set.reps ||
+                                                                    '—'}
+                                                            </Text>
+                                                        </Pressable>
                                                     </>
                                                 )}
 
@@ -853,6 +982,52 @@ export default function ActiveWorkoutScreen() {
                                                         ⋯
                                                     </Text>
                                                 </Pressable>
+                                            </View>
+                                            {showRir ? (
+                                                <View style={styles.rirRow}>
+                                                    <Text style={styles.rirLabel}>
+                                                        RIR
+                                                    </Text>
+                                                    {['0', '1', '2', '3', '4'].map(
+                                                        (value) => {
+                                                            const selected =
+                                                                set.rir === value;
+
+                                                            return (
+                                                                <Pressable
+                                                                    key={value}
+                                                                    onPress={() =>
+                                                                        updateRir(
+                                                                            exercise.id,
+                                                                            set.id,
+                                                                            selected
+                                                                                ? ''
+                                                                                : value
+                                                                        )
+                                                                    }
+                                                                    style={[
+                                                                        styles.rirChip,
+                                                                        selected &&
+                                                                            styles.rirChipOn,
+                                                                    ]}
+                                                                >
+                                                                    <Text
+                                                                        style={[
+                                                                            styles.rirChipText,
+                                                                            selected &&
+                                                                                styles.rirChipTextOn,
+                                                                        ]}
+                                                                    >
+                                                                        {value === '4'
+                                                                            ? '4+'
+                                                                            : value}
+                                                                    </Text>
+                                                                </Pressable>
+                                                            );
+                                                        }
+                                                    )}
+                                                </View>
+                                            ) : null}
                                             </View>
                                         );
                                     }
@@ -952,6 +1127,79 @@ export default function ActiveWorkoutScreen() {
                     }
                 />
             </View>
+
+            <SetKeypad
+                visible={Boolean(keypad)}
+                title={
+                    keypad?.field === 'reps'
+                        ? 'Reps'
+                        : keypad?.field === 'duration'
+                          ? 'Time'
+                          : 'Weight'
+                }
+                value={
+                    keypad
+                        ? (workoutExercises
+                              .find(
+                                  (exercise) =>
+                                      exercise.id ===
+                                      keypad.exerciseId
+                              )
+                              ?.sets.find(
+                                  (set) =>
+                                      set.id === keypad.setId
+                              )?.[keypad.field] ?? '')
+                        : ''
+                }
+                field={keypad?.field ?? 'weight'}
+                unitLabel={
+                    keypad?.field === 'weight'
+                        ? weightUnit
+                        : keypad?.field === 'duration'
+                          ? 's'
+                          : undefined
+                }
+                copyLabel="Copy last"
+                onChange={(value) => {
+                    if (!keypad) {
+                        return;
+                    }
+
+                    if (keypad.field === 'weight') {
+                        updateWeight(
+                            keypad.exerciseId,
+                            keypad.setId,
+                            value
+                        );
+                        return;
+                    }
+
+                    if (keypad.field === 'reps') {
+                        updateReps(
+                            keypad.exerciseId,
+                            keypad.setId,
+                            value
+                        );
+                        return;
+                    }
+
+                    updateDuration(
+                        keypad.exerciseId,
+                        keypad.setId,
+                        value
+                    );
+                }}
+                onCopyLast={
+                    keypad
+                        ? () =>
+                              copyLastSet(
+                                  keypad.exerciseId,
+                                  keypad.setId
+                              )
+                        : undefined
+                }
+                onClose={() => setKeypad(null)}
+            />
         </View>
     );
 }
@@ -987,6 +1235,9 @@ function createStyles(c: AppColors) {
         color: c.text,
         fontSize: 17,
         fontWeight: '700',
+        textAlign: 'center',
+        minWidth: 120,
+        paddingVertical: 0,
     },
 
     workoutTimer: {
@@ -1005,11 +1256,21 @@ function createStyles(c: AppColors) {
     close: {
         color: c.tint,
         fontSize: 16,
+        fontWeight: '600',
+    },
+
+    finishPill: {
+        backgroundColor: c.tint,
+        minHeight: 34,
+        paddingHorizontal: 14,
+        borderRadius: 17,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     finish: {
-        color: c.tint,
-        fontSize: 16,
+        color: c.onTint,
+        fontSize: 15,
         fontWeight: '700',
     },
 
@@ -1165,6 +1426,22 @@ function createStyles(c: AppColors) {
         marginBottom: 14,
     },
 
+    restChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: c.fill,
+        marginRight: 4,
+        marginTop: 2,
+    },
+
+    restChipText: {
+        color: c.tint,
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.3,
+    },
+
     exerciseMenu: {
         width: 38,
         height: 32,
@@ -1222,7 +1499,46 @@ function createStyles(c: AppColors) {
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 12,
-        marginBottom: 7,
+    },
+
+    rirRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 4,
+        marginBottom: 10,
+        paddingLeft: 34,
+    },
+
+    rirLabel: {
+        color: c.textFaint,
+        fontSize: 11,
+        fontWeight: '700',
+        width: 28,
+    },
+
+    rirChip: {
+        minWidth: 32,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: c.fill,
+        paddingHorizontal: 8,
+    },
+
+    rirChipOn: {
+        backgroundColor: c.text,
+    },
+
+    rirChipText: {
+        color: c.textSecondary,
+        fontSize: 13,
+        fontWeight: '700',
+    },
+
+    rirChipTextOn: {
+        color: c.background,
     },
 
     completedSetRow: {
@@ -1276,10 +1592,16 @@ function createStyles(c: AppColors) {
 
         borderRadius: 10,
 
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+
+    inputText: {
         color: c.text,
         fontSize: 16,
         fontWeight: '600',
         textAlign: 'center',
+        fontVariant: ['tabular-nums'],
     },
 
     completedInput: {
