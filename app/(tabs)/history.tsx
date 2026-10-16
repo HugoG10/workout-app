@@ -7,6 +7,7 @@ import {
     View,
 } from 'react-native';
 
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 
 import { useHistory } from '@/context/history-context';
@@ -37,27 +38,50 @@ export default function HistoryScreen() {
     const { weightUnit } = useSettings();
     const week = getWeekStats(weightUnit);
     const [query, setQuery] = useState('');
-    const calendar = monthCells();
+    const [monthAnchor, setMonthAnchor] = useState(
+        () => new Date()
+    );
+    const [selectedKey, setSelectedKey] = useState<string | null>(
+        null
+    );
+    const calendar = monthCells(monthAnchor);
     const trained = trainedDayKeys(workouts);
     const today = dayKey(new Date());
 
     const visibleWorkouts = useMemo(() => {
         const needle = query.trim().toLowerCase();
+        const matched = needle
+            ? workouts.filter((workout) => {
+                  if (workout.name.toLowerCase().includes(needle)) {
+                      return true;
+                  }
 
-        if (!needle) {
-            return workouts;
+                  return workout.exercises.some((exercise) =>
+                      exercise.name.toLowerCase().includes(needle)
+                  );
+              })
+            : workouts;
+
+        if (!selectedKey) {
+            return matched;
         }
 
-        return workouts.filter((workout) => {
-            if (workout.name.toLowerCase().includes(needle)) {
-                return true;
-            }
+        return matched.filter(
+            (workout) => dayKey(workout.date) === selectedKey
+        );
+    }, [query, selectedKey, workouts]);
 
-            return workout.exercises.some((exercise) =>
-                exercise.name.toLowerCase().includes(needle)
-            );
-        });
-    }, [query, workouts]);
+    const selectedLabel = selectedKey
+        ? new Date(
+              Number(selectedKey.slice(0, 4)),
+              Number(selectedKey.slice(5, 7)) - 1,
+              Number(selectedKey.slice(8, 10))
+          ).toLocaleDateString([], {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+          })
+        : null;
 
     function formatDuration(seconds: number) {
         return formatDurationLong(seconds);
@@ -105,6 +129,24 @@ export default function HistoryScreen() {
             .toUpperCase();
     }
 
+    function shiftMonth(delta: number) {
+        setMonthAnchor(
+            (current) =>
+                new Date(
+                    current.getFullYear(),
+                    current.getMonth() + delta,
+                    1
+                )
+        );
+    }
+
+    function selectDay(key: string) {
+        Haptics.selectionAsync();
+        setSelectedKey((current) =>
+            current === key ? null : key
+        );
+    }
+
     let previousMonth = '';
 
     return (
@@ -128,75 +170,169 @@ export default function HistoryScreen() {
             />
 
             {workouts.length > 0 && (
-                <>
-                    <SearchField
-                        value={query}
-                        onChangeText={setQuery}
-                        placeholder="Search workouts or exercises"
-                    />
+                <SearchField
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder="Search workouts or exercises"
+                />
+            )}
 
-                    <View style={styles.calendarCard}>
-                        <Text style={styles.calendarLabel}>
-                            {calendar.label.toUpperCase()}
-                        </Text>
-                        <View style={styles.weekdayRow}>
-                            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(
-                                (day, index) => (
+            <View style={styles.calendarCard}>
+                <View style={styles.calendarHeader}>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Previous month"
+                        hitSlop={10}
+                        onPress={() => shiftMonth(-1)}
+                        style={styles.monthButton}
+                    >
+                        <Ionicons
+                            name="chevron-back"
+                            size={18}
+                            color={colors.text}
+                        />
+                    </Pressable>
+                    <Text style={styles.calendarLabel}>
+                        {calendar.label}
+                    </Text>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Next month"
+                        hitSlop={10}
+                        onPress={() => shiftMonth(1)}
+                        style={styles.monthButton}
+                    >
+                        <Ionicons
+                            name="chevron-forward"
+                            size={18}
+                            color={colors.text}
+                        />
+                    </Pressable>
+                </View>
+                <View style={styles.weekdayRow}>
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map(
+                        (day, index) => (
+                            <Text
+                                key={`${day}-${index}`}
+                                style={styles.weekday}
+                            >
+                                {day}
+                            </Text>
+                        )
+                    )}
+                </View>
+                <View style={styles.calendarGrid}>
+                    {calendar.cells.map((day, index) => {
+                        if (!day) {
+                            return (
+                                <View
+                                    key={`empty-${index}`}
+                                    style={styles.calendarCell}
+                                />
+                            );
+                        }
+
+                        const key = dayKey(
+                            new Date(
+                                calendar.year,
+                                calendar.month,
+                                day
+                            )
+                        );
+                        const hasWorkout = trained.has(key);
+                        const selected = selectedKey === key;
+                        const isToday = key === today;
+
+                        return (
+                            <Pressable
+                                key={key}
+                                accessibilityRole="button"
+                                accessibilityLabel={
+                                    hasWorkout
+                                        ? `${day}, workout logged`
+                                        : `${day}, no workout`
+                                }
+                                onPress={() => selectDay(key)}
+                                style={styles.calendarCell}
+                            >
+                                <View
+                                    style={[
+                                        styles.dayCircle,
+                                        isToday &&
+                                            !selected &&
+                                            styles.dayToday,
+                                        selected && styles.daySelected,
+                                    ]}
+                                >
                                     <Text
-                                        key={`${day}-${index}`}
-                                        style={styles.weekday}
+                                        style={[
+                                            styles.calendarDay,
+                                            hasWorkout &&
+                                                !selected &&
+                                                styles.calendarDayOn,
+                                            selected &&
+                                                styles.calendarDaySelected,
+                                        ]}
                                     >
                                         {day}
                                     </Text>
-                                )
-                            )}
-                        </View>
-                        <View style={styles.calendarGrid}>
-                            {calendar.cells.map((day, index) => {
-                                if (!day) {
-                                    return (
-                                        <View
-                                            key={`empty-${index}`}
-                                            style={styles.calendarCell}
-                                        />
-                                    );
-                                }
+                                </View>
+                                <View
+                                    style={[
+                                        styles.dayDot,
+                                        hasWorkout && styles.dayDotOn,
+                                    ]}
+                                />
+                            </Pressable>
+                        );
+                    })}
+                </View>
+            </View>
 
-                                const key = dayKey(
-                                    new Date(
-                                        calendar.year,
-                                        calendar.month,
-                                        day
-                                    )
-                                );
-
-                                return (
-                                    <View
-                                        key={key}
-                                        style={[
-                                            styles.calendarCell,
-                                            trained.has(key) &&
-                                                styles.calendarTrained,
-                                            key === today &&
-                                                styles.calendarToday,
-                                        ]}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.calendarDay,
-                                                trained.has(key) &&
-                                                    styles.calendarDayOn,
-                                            ]}
-                                        >
-                                            {day}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
-                        </View>
+            {selectedLabel ? (
+                <View style={styles.daySummary}>
+                    <View style={styles.daySummaryCopy}>
+                        <Text style={styles.daySummaryTitle}>
+                            {selectedLabel}
+                        </Text>
+                        <Text style={styles.daySummaryMeta}>
+                            {visibleWorkouts.length === 0
+                                ? 'No session saved'
+                                : `${visibleWorkouts.length} ${
+                                      visibleWorkouts.length === 1
+                                          ? 'session'
+                                          : 'sessions'
+                                  }`}
+                        </Text>
                     </View>
-                </>
-            )}
+                    <Pressable
+                        hitSlop={8}
+                        onPress={() => setSelectedKey(null)}
+                    >
+                        <Text style={styles.clearDay}>Show all</Text>
+                    </Pressable>
+                </View>
+            ) : null}
+
+            {selectedKey && visibleWorkouts.length === 0 ? (
+                <View style={styles.dayEmpty}>
+                    <View style={styles.dayEmptyIcon}>
+                        <Ionicons
+                            name="calendar-outline"
+                            size={22}
+                            color={colors.textSecondary}
+                        />
+                    </View>
+                    <Text style={styles.dayEmptyTitle}>
+                        No workout logged
+                    </Text>
+                    <Text style={styles.dayEmptyText}>
+                        {query.trim()
+                            ? 'No saved session matches this search.'
+                            : 'Nothing was saved for this day.'}
+                    </Text>
+                </View>
+            ) : null}
 
             {workouts.length > 0 && (
                 <View style={styles.weekRow}>
@@ -225,7 +361,7 @@ export default function HistoryScreen() {
 
             {/* EMPTY STATE */}
 
-            {workouts.length === 0 && (
+            {workouts.length === 0 && !selectedKey && (
                 <View style={styles.emptyCard}>
                     <View style={styles.emptyIcon}>
                         <Text style={styles.emptyIconText}>
@@ -561,30 +697,48 @@ function createStyles(c: AppColors) {
 
     calendarCard: {
         backgroundColor: c.card,
-        borderRadius: 16,
-        padding: 14,
-        marginBottom: 22,
+        borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.line,
+        paddingHorizontal: 12,
+        paddingTop: 8,
+        paddingBottom: 14,
+        marginBottom: 16,
+    },
+
+    calendarHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+
+    monthButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     calendarLabel: {
-        color: c.textMuted,
-        fontSize: 11,
+        color: c.text,
+        fontSize: 17,
         fontWeight: '700',
-        letterSpacing: 0.8,
-        marginBottom: 10,
+        letterSpacing: -0.2,
     },
 
     weekdayRow: {
         flexDirection: 'row',
-        marginBottom: 6,
+        marginBottom: 4,
     },
 
     weekday: {
         flex: 1,
         textAlign: 'center',
         color: c.textFaint,
-        fontSize: 11,
-        fontWeight: '700',
+        fontSize: 12,
+        fontWeight: '600',
     },
 
     calendarGrid: {
@@ -594,30 +748,119 @@ function createStyles(c: AppColors) {
 
     calendarCell: {
         width: '14.28%',
-        aspectRatio: 1,
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+
+    dayCircle: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 8,
     },
 
-    calendarTrained: {
-        backgroundColor: c.tintSoft,
-    },
-
-    calendarToday: {
+    dayToday: {
         borderWidth: 1,
         borderColor: c.tint,
     },
 
+    daySelected: {
+        backgroundColor: c.text,
+    },
+
     calendarDay: {
-        color: c.textSecondary,
-        fontSize: 13,
-        fontWeight: '600',
+        color: c.text,
+        fontSize: 15,
+        fontWeight: '500',
+        fontVariant: ['tabular-nums'],
     },
 
     calendarDayOn: {
+        fontWeight: '700',
+    },
+
+    calendarDaySelected: {
+        color: c.background,
+        fontWeight: '700',
+    },
+
+    dayDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        marginTop: 3,
+        backgroundColor: 'transparent',
+    },
+
+    dayDotOn: {
+        backgroundColor: c.tint,
+    },
+
+    daySummary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        paddingHorizontal: 4,
+        gap: 12,
+    },
+
+    daySummaryCopy: {
+        flex: 1,
+    },
+
+    daySummaryTitle: {
+        color: c.text,
+        fontSize: 17,
+        fontWeight: '700',
+    },
+
+    daySummaryMeta: {
+        color: c.textSecondary,
+        fontSize: 13,
+        marginTop: 2,
+    },
+
+    clearDay: {
         color: c.tint,
-        fontWeight: '800',
+        fontSize: 15,
+        fontWeight: '600',
+    },
+
+    dayEmpty: {
+        backgroundColor: c.card,
+        borderRadius: 18,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: c.line,
+        paddingVertical: 28,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        marginBottom: 18,
+    },
+
+    dayEmptyIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: c.fill,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+
+    dayEmptyTitle: {
+        color: c.text,
+        fontSize: 17,
+        fontWeight: '700',
+    },
+
+    dayEmptyText: {
+        color: c.textSecondary,
+        fontSize: 14,
+        lineHeight: 20,
+        textAlign: 'center',
+        marginTop: 4,
     },
 
     weekRow: {

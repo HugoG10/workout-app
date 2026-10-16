@@ -16,6 +16,7 @@ export type AppColors = {
     onTint: string;
     separator: string;
     separatorSoft: string;
+    line: string;
     destructive: string;
     success: string;
     tabBar: string;
@@ -45,14 +46,15 @@ export const Palettes: Record<ColorScheme, AppColors> = {
         card: '#ffffff',
         fill: '#f2f2f7',
         text: '#1c1c1e',
-        textSecondary: '#777777',
-        textMuted: '#888888',
-        textFaint: '#999999',
+        textSecondary: '#636366',
+        textMuted: '#8E8E93',
+        textFaint: '#AEAEB2',
         tint: '#007AFF',
         tintSoft: '#eef5ff',
         onTint: '#ffffff',
         separator: '#dddddd',
         separatorSoft: '#eeeeee',
+        line: '#E5E5EA',
         destructive: '#ff3b30',
         success: '#34c759',
         tabBar: '#ffffff',
@@ -73,14 +75,15 @@ export const Palettes: Record<ColorScheme, AppColors> = {
         card: '#1c1c1e',
         fill: '#2c2c2e',
         text: '#ffffff',
-        textSecondary: '#d1d1d6',
-        textMuted: '#c7c7cc',
-        textFaint: '#aeaeb2',
+        textSecondary: '#A1A1A6',
+        textMuted: '#8E8E93',
+        textFaint: '#636366',
         tint: '#0A84FF',
         tintSoft: '#1c3f7a',
         onTint: '#ffffff',
         separator: '#48484a',
         separatorSoft: '#3a3a3c',
+        line: '#2C2C2E',
         destructive: '#ff453a',
         success: '#32d74b',
         tabBar: '#1c1c1e',

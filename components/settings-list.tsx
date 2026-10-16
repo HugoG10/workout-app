@@ -110,7 +110,11 @@ export function SettingsGroup({
         <View
             style={[
                 styles.group,
-                { backgroundColor: colors.card },
+                {
+                    backgroundColor: colors.card,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: colors.line,
+                },
             ]}
         >
             {children}

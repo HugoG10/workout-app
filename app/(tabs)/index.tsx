@@ -315,7 +315,7 @@ export default function WorkoutScreen() {
       )}
 
       <Text style={styles.sectionLabel}>
-        QUICK START
+        Start
       </Text>
 
       <Pressable
@@ -326,31 +326,27 @@ export default function WorkoutScreen() {
         onPress={handleStartEmpty}
       >
         <View style={styles.quickStartIcon}>
-          <Text style={styles.quickStartIconText}>
-            +
-          </Text>
+          <Ionicons name="add" size={22} color={colors.text} />
         </View>
 
         <View style={styles.quickStartInfo}>
           <Text style={styles.quickStartTitle}>
-            Start Empty Workout
+            Empty workout
           </Text>
 
           <Text style={styles.quickStartSubtitle}>
-            Build your workout as you go
+            Add exercises as you go
           </Text>
         </View>
 
-        <Ionicons
-          name="chevron-forward"
-          size={22}
-          color="rgba(255,255,255,0.8)"
-        />
+        <View style={styles.inlineStart}>
+          <Text style={styles.inlineStartText}>Start</Text>
+        </View>
       </Pressable>
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionLabel}>
-          MY ROUTINES
+          Routines
         </Text>
 
         <Pressable
@@ -523,10 +519,10 @@ function createStyles(c: AppColors) {
   },
 
   sectionLabel: {
-    color: c.textMuted,
-    fontSize: 12,
+    color: c.text,
+    fontSize: 22,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: -0.4,
     marginBottom: 12,
   },
 
@@ -539,9 +535,11 @@ function createStyles(c: AppColors) {
 
   todayCard: {
     backgroundColor: c.card,
-    borderRadius: 16,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.line,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 28,
     gap: 16,
   },
 
@@ -657,29 +655,24 @@ function createStyles(c: AppColors) {
   },
 
   quickStartCard: {
-    backgroundColor: c.tint,
+    backgroundColor: c.card,
     borderRadius: 18,
-    padding: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.line,
+    padding: 16,
     marginBottom: 28,
     flexDirection: 'row',
     alignItems: 'center',
   },
 
   quickStartIcon: {
-    width: 46,
-    height: 46,
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: c.fill,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
-  },
-
-  quickStartIconText: {
-    color: c.onTint,
-    fontSize: 30,
-    fontWeight: '300',
-    marginTop: -2,
   },
 
   quickStartInfo: {
@@ -687,22 +680,37 @@ function createStyles(c: AppColors) {
   },
 
   quickStartTitle: {
-    color: c.onTint,
-    fontSize: 18,
+    color: c.text,
+    fontSize: 17,
     fontWeight: '700',
   },
 
   quickStartSubtitle: {
-    color: 'rgba(255,255,255,0.75)',
+    color: c.textSecondary,
     fontSize: 13,
     marginTop: 3,
+  },
+
+  inlineStart: {
+    backgroundColor: c.text,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+
+  inlineStartText: {
+    color: c.background,
+    fontSize: 14,
+    fontWeight: '700',
   },
 
   routineCard: {
     backgroundColor: c.card,
     borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.line,
     padding: 18,
-    marginBottom: 16,
+    marginBottom: 12,
   },
 
   cardPressed: {
@@ -733,10 +741,10 @@ function createStyles(c: AppColors) {
   },
 
   startButton: {
-    backgroundColor: c.tintSoft,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 11,
+    backgroundColor: c.text,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
   },
 
   startButtonPressed: {
@@ -744,7 +752,7 @@ function createStyles(c: AppColors) {
   },
 
   startButtonText: {
-    color: c.tint,
+    color: c.background,
     fontWeight: '700',
   },
 
@@ -804,6 +812,8 @@ function createStyles(c: AppColors) {
   emptyCard: {
     backgroundColor: c.card,
     borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.line,
     padding: 28,
     alignItems: 'center',
   },
